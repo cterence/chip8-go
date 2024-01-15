@@ -246,10 +246,10 @@ func (c *Chip8) ExecuteOP() {
 			pixel = c.memory[c.i+yline]
 			for xline := uint16(0); xline < 8; xline++ {
 				if (pixel & (0x80 >> xline)) != 0 {
-					if c.Gfx[((vx+uint8(xline))%64)+(((vy+uint8(yline))%32)*64)] == 1 {
+					if c.Gfx[(uint16(vx)+xline)+((uint16(vy)+yline)*64)] == 1 {
 						c.v[0xF] = 1
 					}
-					c.Gfx[(vx+uint8(xline))+((vy+uint8(yline))*64)] ^= 1
+					c.Gfx[(uint16(vx)+xline)+((uint16(vy)+yline)*64)] ^= 1
 				}
 			}
 		}

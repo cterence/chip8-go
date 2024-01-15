@@ -55,9 +55,6 @@ func drawGraphics(c *chip8.Chip8, renderer *sdl.Renderer) {
 	// }
 	// fmt.Println()
 
-	// Clear the window with the draw color
-	renderer.Clear()
-
 	// Draw the pixels as white rectangles on the window
 	for i, pix := range c.Gfx {
 		renderer.SetDrawColor(0, 0, 0, 255)
@@ -189,6 +186,6 @@ func main() {
 			break
 		}
 		// Run at 60Hz
-		sdl.Delay(1000 / 5)
+		sdl.Delay(1000 / 60)
 	}
 }
