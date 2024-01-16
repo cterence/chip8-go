@@ -3,6 +3,7 @@ package chip8
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 )
 
@@ -22,8 +23,8 @@ type Chip8 struct {
 	Gfx []uint8
 	// Current state of Key
 	Key        []uint8
-	delayTimer uint8
-	soundTimer uint8
+	DelayTimer uint8
+	SoundTimer uint8
 }
 
 var chip8Fontset = [80]uint8{
@@ -58,8 +59,8 @@ func Init() *Chip8 {
 		v:          make([]uint8, 16),
 		Gfx:        make([]uint8, 64*32),
 		Key:        make([]uint8, 16),
-		delayTimer: 0,
-		soundTimer: 0,
+		DelayTimer: 0,
+		SoundTimer: 0,
 	}
 
 	// Clear display
@@ -108,6 +109,7 @@ func (c *Chip8) ExecuteOP() {
 			c.pc = c.stack[c.sp-1]
 			c.sp -= 1
 			fmt.Printf("[0x00EE] Return to instruction on top of stack : 0x%X\n", c.pc)
+			c.pc += 2
 
 		default:
 			log.Fatalf("ERROR: Unknown opcode: 0x%X", op)
@@ -131,7 +133,7 @@ func (c *Chip8) ExecuteOP() {
 		x := op & 0x0F00 >> 8
 		n := uint8(op & 0x00FF)
 		c.pc += 2
-		fmt.Printf("[0x3XNN] Skip next instruction if v[0x%X](0x%X) eq NN(0x%X)\n", c.v[x], x, n)
+		fmt.Printf("[0x3XNN] Skip next instruction if v%X(0x%X) eq NN(0x%X)\n", c.v[x], x, n)
 		if c.v[x] == n {
 			c.pc += 2
 		}
@@ -139,7 +141,7 @@ func (c *Chip8) ExecuteOP() {
 	case 0x4000:
 		x := op & 0x0F00 >> 8
 		n := uint8(op & 0x00FF)
-		fmt.Printf("[0x4XNN] Skip instruction if v[%X]=%X != %X\n", x, c.v[x], n)
+		fmt.Printf("[0x4XNN] Skip instruction if v%X=%X != %X\n", x, c.v[x], n)
 		if c.v[x] != n {
 			c.pc += 2
 		}
@@ -150,7 +152,7 @@ func (c *Chip8) ExecuteOP() {
 		y := op & 0x00F0 >> 4
 		vx := c.v[x]
 		vy := c.v[y]
-		fmt.Printf("[0x5XY0] Skip next instruction if v[%X] == v[%X] : %X = %X", x, y, vx, vy)
+		fmt.Printf("[0x5XY0] Skip next instruction if v%X == v%X : %X = %X\n", x, y, vx, vy)
 
 		if vx == vy {
 			c.pc += 2
@@ -177,15 +179,15 @@ func (c *Chip8) ExecuteOP() {
 		case 0x0000:
 			x := op & 0x0F00 >> 8
 			y := op & 0x00F0 >> 4
-			fmt.Printf("[0x8XY0] v[0x%X] = %X\n", x, c.v[x])
+			fmt.Printf("[0x8XY0] v%X = %X\n", x, c.v[x])
 			c.v[x] = c.v[y]
 			c.pc += 2
 
 		case 0x0001:
 			x := op & 0x0F00 >> 8
-			y := op & 0x0F00 >> 4
+			y := op & 0x00F0 >> 4
 			val := c.v[x] | c.v[y]
-			fmt.Printf("[0x8XY1] v[0x%X] = 0x%X | 0x%X = 0x%X\n", x, c.v[x], c.v[y], val)
+			fmt.Printf("[0x8XY1] v%X = 0x%X | 0x%X = 0x%X\n", x, c.v[x], c.v[y], val)
 			c.v[x] = val
 			c.pc += 2
 
@@ -193,7 +195,15 @@ func (c *Chip8) ExecuteOP() {
 			x := op & 0x0F00 >> 8
 			y := op & 0x00F0 >> 4
 			val := c.v[x] & c.v[y]
-			fmt.Printf("[0x8XY1] v[0x%X] = 0x%X & 0x%X = 0x%X\n", x, c.v[x], c.v[y], val)
+			fmt.Printf("[0x8XY1] v%X = 0x%X & 0x%X = 0x%X\n", x, c.v[x], c.v[y], val)
+			c.v[x] = val
+			c.pc += 2
+
+		case 0x0003:
+			x := op & 0x0F00 >> 8
+			y := op & 0x00F0 >> 4
+			val := c.v[x] ^ c.v[y]
+			fmt.Printf("[0x8XY1] v%X = 0x%X ^ 0x%X = 0x%X\n", x, c.v[x], c.v[y], val)
 			c.v[x] = val
 			c.pc += 2
 
@@ -201,12 +211,53 @@ func (c *Chip8) ExecuteOP() {
 			x := op & 0x0F00 >> 8
 			y := op & 0x00F0 >> 4
 			res := c.v[x] + c.v[y]
-			fmt.Printf("[0x8XY4] v[%X] + v[%X] = %X + %X = %X (v[F] = 1 if > 0xFF)\n", x, y, c.v[x], c.v[y], res)
+			fmt.Printf("[0x8XY4] v%X = v%X + v%X = %X + %X = %X (vF = 1 if > 0xFF)\n", x, x, y, c.v[x], c.v[y], res)
 			if res > 0xFF {
 				c.v[0xF] = 1
 				res = res % 0xFF
 			}
 			c.v[x] = res
+			c.pc += 2
+
+		case 0x0005:
+			x := op & 0x0F00 >> 8
+			y := op & 0x00F0 >> 4
+			res := uint8(math.Abs(float64(c.v[x] - c.v[y])))
+			if c.v[x] > c.v[y] {
+				c.v[0xF] = 1
+			}
+			fmt.Printf("[0x8XY7] v%X = v%X - v%X = %X - %X = %X (vF = 1 if > 0xFF)\n", x, x, y, c.v[x], c.v[y], res)
+			c.v[x] = res
+			c.pc += 2
+
+		case 0x0006:
+			x := op & 0x0F00 >> 8
+			lsb := c.v[x] & 0x0F
+			if lsb == 1 {
+				c.v[0xF] = 1
+			}
+			c.v[x] /= 2
+			c.pc += 2
+
+		case 0x0007:
+			x := op & 0x0F00 >> 8
+			y := op & 0x00F0 >> 4
+			res := uint8(math.Abs(float64(c.v[y] - c.v[x])))
+			if c.v[y] > c.v[x] {
+				c.v[0xF] = 1
+			}
+			fmt.Printf("[0x8XY7] v%X = v%X - v%X = %X - %X = %X (vF = 1 if > 0xFF)\n", x, y, x, c.v[y], c.v[x], res)
+			c.v[x] = res
+			c.pc += 2
+
+		case 0x000E:
+			x := op & 0x0F00 >> 8
+			msb := c.v[x] >> 4
+			fmt.Printf("[0x000E] If MSB of v%X = 1, vF = 1 & v%X*2 = %X\n", x, x, c.v[x]*2)
+			if msb == 1 {
+				c.v[0xF] = 1
+			}
+			c.v[x] *= 2
 			c.pc += 2
 
 		default:
@@ -219,7 +270,7 @@ func (c *Chip8) ExecuteOP() {
 		y := op & 0x00F0 >> 4
 		vx := c.v[x]
 		vy := c.v[y]
-		fmt.Printf("[0x5XY0] Skip next instruction if v[%X] != v[%X] : %X = %X", x, y, vx, vy)
+		fmt.Printf("[0x9XY0] Skip next instruction if v%X != v%X : %X = %X\n", x, y, vx, vy)
 
 		if vx != vy {
 			c.pc += 2
@@ -237,7 +288,7 @@ func (c *Chip8) ExecuteOP() {
 		vx := c.v[x]
 		vy := c.v[y]
 		height := op & 0x000F
-		fmt.Printf("[0xDXYN] Draw sprite at v[%X]=%X, v[%X]=%X, height=%X\n", x, vx, y, vy, height)
+		fmt.Printf("[0xDXYN] Draw sprite at v%X=%X, v%X=%X, height=%X\n", x, vx, y, vy, height)
 		var pixel uint8
 
 		c.v[0xF] = 0
@@ -259,10 +310,18 @@ func (c *Chip8) ExecuteOP() {
 
 	case 0xE000:
 		switch op & 0x00FF {
+
 		case 0x00A1:
 			x := op & 0x0F00 >> 8
 			fmt.Printf("[0xEXA1] Skip next instruction if key 0x%X is 0(0x%X)\n", x, c.Key[x])
 			if c.Key[x] == 0 {
+				c.pc += 2
+			}
+			c.pc += 2
+
+		case 0x009E:
+			x := op & 0x0F00 >> 8
+			if c.Key[c.v[x]] == 1 {
 				c.pc += 2
 			}
 			c.pc += 2
@@ -275,10 +334,16 @@ func (c *Chip8) ExecuteOP() {
 	case 0xF000:
 		switch op & 0x00FF {
 
+		case 0x0007:
+			x := op & 0x0F00 >> 8
+			fmt.Printf("[0xFX07] Set v%X to delay timer = %X\n", x, c.DelayTimer)
+			c.v[x] = c.DelayTimer
+			c.pc += 2
+
 		case 0x000A:
 			// Wait for key press, store the value of the key in Vx
 			x := op & 0x0F00 >> 8
-			fmt.Printf("[0xFX0A] Wait for key press and store it in v[%X]\n", x)
+			fmt.Printf("[0xFX0A] Wait for key press and store it in v%X\n", x)
 			var keyPress bool
 			for i := range c.Key {
 				if c.Key[i] != 0 {
@@ -293,25 +358,42 @@ func (c *Chip8) ExecuteOP() {
 
 		case 0x0015:
 			x := op & 0x0F00 >> 8
-			c.delayTimer = c.v[x]
+			c.DelayTimer = c.v[x]
 			fmt.Printf("[0xFX15] Set delay timer to 0x%X", c.v[x])
 			c.pc += 2
 
 		case 0x0018:
 			x := op & 0x0F00 >> 8
-			c.soundTimer = c.v[x]
+			c.SoundTimer = c.v[x]
 			fmt.Printf("[0xFX18] Set sound timer to 0x%X", c.v[x])
 			c.pc += 2
 
 		case 0x001E:
 			x := op & 0x0F00 >> 8
 			c.i += uint16(c.v[x])
-			fmt.Printf("[0xFX1E] Add v[%X]=0x%X to I=0x%X\n", x, c.v[x], c.i)
+			fmt.Printf("[0xFX1E] Add v%X=0x%X to I=0x%X\n", x, c.v[x], c.i)
+			c.pc += 2
+
+		case 0x0033:
+			x := op & 0x0F00 >> 8
+			fmt.Printf("[0xFX33] I = %X, I+1 = %X, I+2 = %X\n", (c.v[x]/100)%10, (c.v[x]/10)%10, (c.v[x]/1)%10)
+			c.memory[c.i] = (c.v[x] / 100) % 10
+			c.memory[c.i+1] = (c.v[x] / 10) % 10
+			c.memory[c.i+2] = (c.v[x] / 1) % 10
+			c.pc += 2
+
+		case 0x0055:
+			x := op & 0x0F00 >> 8
+			fmt.Printf("[0xFX65] Load memory starting from I (0x%X) into v[0x0] to v%X\n", c.i, x)
+			var idx uint16
+			for idx = 0; idx <= x; idx++ {
+				c.memory[c.i+idx] = c.v[idx]
+			}
 			c.pc += 2
 
 		case 0x0065:
 			x := op & 0x0F00 >> 8
-			fmt.Printf("[0xFX65] Load memory starting from I (0x%X) into v[0x0] to v[0x%X]\n", c.i, x)
+			fmt.Printf("[0xFX65] Load memory starting from I (0x%X) into v[0x0] to v%X\n", c.i, x)
 			var idx uint16
 			for idx = 0; idx <= x; idx++ {
 				c.v[idx] = c.memory[c.i+idx]

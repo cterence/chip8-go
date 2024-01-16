@@ -8,11 +8,7 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-func initInput() {
-	fmt.Println("Init input : Not implemented yet")
-}
-
-func initGraphics() *sdl.Renderer {
+func initGraphics() (*sdl.Renderer, *sdl.Window) {
 	// Initialize SDL
 	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
 		panic(err)
@@ -39,7 +35,7 @@ func initGraphics() *sdl.Renderer {
 	// Update the window
 	renderer.Present()
 
-	return renderer
+	return renderer, window
 }
 
 func drawGraphics(c *chip8.Chip8, renderer *sdl.Renderer) {
@@ -74,12 +70,12 @@ func drawGraphics(c *chip8.Chip8, renderer *sdl.Renderer) {
 }
 
 func playBeep() {
+	// Play beep sound
 	fmt.Println("BEEP")
 }
 
-func setInput(c *chip8.Chip8) {
+func setInput(c *chip8.Chip8, sdlevents sdl.Event) {
 	// Set the key press state (Press and Release)
-	sdlevents := sdl.PollEvent()
 	switch t := sdlevents.(type) {
 	case *sdl.KeyboardEvent:
 		if t.Type == sdl.KEYDOWN {
@@ -159,16 +155,16 @@ func setInput(c *chip8.Chip8) {
 func main() {
 	fmt.Println("Launching CHIP-8 Emulator...")
 
-	initInput()
 	c := chip8.Init()
 	c.LoadRom(os.Args[1])
 
-	renderer := initGraphics()
+	renderer, window := initGraphics()
 	defer renderer.Destroy()
+	defer window.Destroy()
 	defer sdl.Quit()
 
-	// spew.Dump(c)
 	for {
+		event := sdl.PollEvent()
 		c.ExecuteOP()
 
 		if c.DrawFlag {
@@ -178,14 +174,18 @@ func main() {
 
 		if c.PlaySound {
 			playBeep()
+			c.SoundTimer = 0
 		}
 
-		setInput(c)
+		setInput(c, event)
 
 		if c.Stop {
 			break
 		}
-		// Run at 60Hz
-		sdl.Delay(1000 / 60)
+
+		if c.DelayTimer > 0 {
+			sdl.Delay((1000 / 60) * 10)
+			c.DelayTimer = 0
+		}
 	}
 }
