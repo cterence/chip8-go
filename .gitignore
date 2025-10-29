@@ -1,1 +1,3 @@
 tmp
+.pre-commit-config.yaml
+.direnv
