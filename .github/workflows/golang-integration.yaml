@@ -1,0 +1,54 @@
+name: Golang Integration
+
+on:
+  push:
+
+env:
+  GO_VERSION: "1.25"
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: libsdl-org/setup-sdl@main
+        name: Install SDL3
+        id: sdl
+        with:
+          install-linux-dependencies: true
+          version: 3-latest
+          version-sdl-image: 3-latest
+          add-to-environment: true
+
+      - name: Set up Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Generate code
+        run: go generate ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
+        with:
+          version: v2.5
+
+      - name: Build
+        run: CGO_ENABLED=0 go build main.go
+
+      - name: Unit tests
+        run: go test ./...
