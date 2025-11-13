@@ -125,5 +125,6 @@ func main() {
 
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		slog.Error("runtime error", "error", err)
+		os.Exit(1)
 	}
 }
