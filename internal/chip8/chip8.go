@@ -1,8 +1,12 @@
 package chip8
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/Zyko0/go-sdl3/sdl"
@@ -14,9 +18,6 @@ import (
 )
 
 type Chip8 struct {
-	romBytes []byte
-	headless bool
-
 	cpu   *cpu.CPU
 	mem   *memory.Memory
 	ui    *ui.UI
@@ -24,7 +25,12 @@ type Chip8 struct {
 
 	uiOptions []ui.Option
 
-	tickLimit int
+	romBytes           []byte
+	romFileName        string
+	headless           bool
+	tickLimit          int
+	exitAfterTickLimit bool
+	screenshot         bool
 }
 
 type Option func(*Chip8)
@@ -53,9 +59,23 @@ func New(romBytes []byte, options ...Option) *Chip8 {
 	return c8
 }
 
-func WithTickLimit(tickLimit int) Option {
+func WithPauseAfter(tickLimit int) Option {
 	return func(c *Chip8) {
 		c.tickLimit = tickLimit
+	}
+}
+
+func WithExitAfter(tickLimit int) Option {
+	return func(c *Chip8) {
+		c.tickLimit = tickLimit
+		c.exitAfterTickLimit = tickLimit > 0
+	}
+}
+
+func WithScreenshot(screenshot bool, rom string) Option {
+	return func(c *Chip8) {
+		c.screenshot = screenshot
+		c.romFileName = rom
 	}
 }
 
@@ -87,11 +107,20 @@ func (c8 *Chip8) Init() error {
 	return nil
 }
 
-func (c8 *Chip8) Run() error {
+func (c8 *Chip8) Run(ctx context.Context) error {
+	rCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	trapSigInt(cancel)
+
 	if err := c8.Init(); err != nil {
 		return fmt.Errorf("failed to init chip8: %w", err)
 	}
 	defer c8.ui.Destroy()
+
+	if c8.screenshot {
+		defer c8.ui.Screenshot(c8.romFileName)
+	}
 
 	var (
 		err   error
@@ -99,23 +128,32 @@ func (c8 *Chip8) Run() error {
 	)
 
 	for err == nil {
-		if c8.tickLimit > 0 && ticks == c8.tickLimit {
-			slog.Info("tick limit reached", "ticks", ticks)
+		select {
+		case <-rCtx.Done():
+			return nil
+		default:
+			if c8.tickLimit > 0 && ticks == c8.tickLimit {
+				slog.Info("tick limit reached", "ticks", ticks)
 
-			c8.cpu.Paused = true
+				if c8.exitAfterTickLimit {
+					return nil
+				}
+
+				c8.cpu.Paused = true
+			}
+
+			tickTime := time.Now()
+
+			c8.cpu.Tick()
+
+			if !c8.headless {
+				err = c8.ui.Update(tickTime)
+			}
+
+			c8.timer.Tick(tickTime)
+
+			ticks++
 		}
-
-		tickTime := time.Now()
-
-		c8.cpu.Tick()
-
-		if !c8.headless {
-			err = c8.ui.Update(tickTime)
-		}
-
-		c8.timer.Tick(tickTime)
-
-		ticks++
 	}
 
 	if err != nil && err != sdl.EndLoop {
@@ -135,4 +173,14 @@ func (c8 *Chip8) loadROM() {
 	}
 
 	slog.Debug("rom loaded", "size", l)
+}
+
+func trapSigInt(cancel context.CancelFunc) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		cancel()
+	}()
 }

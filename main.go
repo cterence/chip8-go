@@ -18,17 +18,58 @@ const (
 
 func main() {
 	var (
-		logLevel  string
-		rom       string
-		tickLimit int
-		scale     int
-		headless  bool
+		logLevel   string
+		rom        string
+		pauseAfter int
+		exitAfter  int
+		scale      int
+		headless   bool
+		screenshot bool
 	)
 
 	cmd := &cli.Command{
 		Name:  "c8g",
 		Usage: "chip8 emulator",
-
+		MutuallyExclusiveFlags: []cli.MutuallyExclusiveFlags{
+			{
+				Flags: [][]cli.Flag{
+					{
+						&cli.IntFlag{
+							Name:        "pause-after",
+							Aliases:     []string{"p"},
+							Usage:       "pause execution after t ticks",
+							Destination: &pauseAfter,
+						},
+					},
+					{
+						&cli.IntFlag{
+							Name:        "exit-after",
+							Aliases:     []string{"e"},
+							Usage:       "exit after t ticks",
+							Destination: &exitAfter,
+						},
+					},
+				},
+			},
+			{
+				Flags: [][]cli.Flag{
+					{
+						&cli.BoolFlag{
+							Name:        "headless",
+							Usage:       "disable ui",
+							Destination: &headless,
+						},
+					},
+					{
+						&cli.BoolFlag{
+							Name:        "screenshot",
+							Usage:       "save screenshot on exit",
+							Destination: &screenshot,
+						},
+					},
+				},
+			},
+		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "log-level",
@@ -36,17 +77,6 @@ func main() {
 				Usage:       "log level (debug, info, error)",
 				Value:       "info",
 				Destination: &logLevel,
-			},
-			&cli.IntFlag{
-				Name:        "tick-limit",
-				Aliases:     []string{"t"},
-				Usage:       "pause execution after t ticks",
-				Destination: &tickLimit,
-			},
-			&cli.BoolFlag{
-				Name:        "headless",
-				Usage:       "disable ui",
-				Destination: &headless,
 			},
 			&cli.IntFlag{
 				Name:        "scale",
@@ -82,12 +112,14 @@ func main() {
 
 			c8 := chip8.New(
 				romBytes,
-				chip8.WithTickLimit(tickLimit),
+				chip8.WithPauseAfter(pauseAfter),
+				chip8.WithExitAfter(exitAfter),
+				chip8.WithScreenshot(screenshot, rom),
 				chip8.WithScale(scale),
 				chip8.WithHeadless(headless),
 			)
 
-			return c8.Run()
+			return c8.Run(ctx)
 		},
 	}
 

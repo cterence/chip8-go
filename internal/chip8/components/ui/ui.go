@@ -3,8 +3,12 @@ package ui
 import (
 	"fmt"
 	"log/slog"
+	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/Zyko0/go-sdl3/bin/binimg"
+	"github.com/Zyko0/go-sdl3/img"
 	"github.com/Zyko0/go-sdl3/sdl"
 	"github.com/cterence/chip8-go-v2/internal/lib"
 )
@@ -199,6 +203,29 @@ func (ui *UI) GetPressedKey() byte {
 	}
 
 	return 0xFF
+}
+
+func (ui *UI) Screenshot(romFileName string) {
+	defer binimg.Load().Unload()
+
+	screenshotFile, _ := strings.CutSuffix(filepath.Base(romFileName), ".ch8")
+	screenshotFile = fmt.Sprintf("%s-%s.jpg", screenshotFile, time.Now().Format("20060102150405"))
+
+	slog.Info("saving screenshot", "file", screenshotFile)
+
+	surface, err := ui.renderer.ReadPixels(nil)
+	if err != nil {
+		slog.Error("failed to get surface", "error", err)
+
+		return
+	}
+	defer surface.Destroy()
+
+	if err := img.SaveJPG(surface, screenshotFile, 90); err != nil {
+		slog.Error("failed to save screenshot", "error", err)
+
+		return
+	}
 }
 
 func (ui *UI) handleEvents() error {
