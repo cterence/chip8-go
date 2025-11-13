@@ -141,6 +141,13 @@ func (c *CPU) execute(inst uint16) {
 		v := inst & ADDR_MASK
 		name = "JP " + lib.FormatHex(v, 3)
 		debugLog(name, inst, c.pc)
+
+		if c.pc-2 == v {
+			slog.Info("infinite loop detected, pausing cpu")
+
+			c.Paused = true
+		}
+
 		c.pc = v
 	case 0x2:
 		v := inst & ADDR_MASK

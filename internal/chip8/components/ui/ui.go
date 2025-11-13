@@ -105,7 +105,6 @@ func (ui *UI) Update(tickTime time.Time) error {
 
 	if tickDuration < TARGET_FRAME_DURATION {
 		delay := TARGET_FRAME_DURATION - tickDuration
-		slog.Debug("delaying", "delay", delay)
 		sdl.Delay(uint32(delay.Milliseconds()))
 	}
 
