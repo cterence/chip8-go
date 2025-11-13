@@ -3,6 +3,8 @@ package timer
 import (
 	"log/slog"
 	"time"
+
+	"github.com/gen2brain/beeep"
 )
 
 type Timer struct {
@@ -23,6 +25,8 @@ func New() *Timer {
 }
 
 func (t *Timer) Init() {
+	t.delay = 0
+	t.sound = 0
 	t.lastTimerUpdate = time.Now()
 }
 
@@ -44,6 +48,15 @@ func (t *Timer) Tick(tickTime time.Time) {
 		if t.delay > 0 {
 			t.delay--
 			slog.Debug("delay timer", "value", t.delay)
+		}
+
+		if t.sound > 1 {
+			slog.Debug("beep")
+
+			err := beeep.Beep(beeep.DefaultFreq, beeep.DefaultDuration)
+			if err != nil {
+				panic(err)
+			}
 		}
 
 		if t.sound > 0 {

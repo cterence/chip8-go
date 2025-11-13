@@ -75,11 +75,10 @@ func main() {
 			}
 
 			c8 := chip8.New(
+				romBytes,
 				chip8.WithTickLimit(tickLimit),
 				chip8.WithScale(scale),
 			)
-
-			c8.LoadROM(romBytes)
 
 			return c8.Run()
 		},

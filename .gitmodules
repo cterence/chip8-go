@@ -4,3 +4,6 @@
 [submodule "sub/chip8-roms"]
 	path = sub/chip8-roms
 	url = git@github.com:kripod/chip8-roms.git
+[submodule "sub/chip-8"]
+	path = sub/chip-8
+	url = git@github.com:mattmikolay/chip-8.git

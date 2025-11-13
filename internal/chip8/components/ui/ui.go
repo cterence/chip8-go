@@ -21,6 +21,9 @@ type UI struct {
 	keyState   map[byte]bool
 
 	lastTickTime time.Time
+
+	ResetChip8 func() error
+	resetTime  time.Time
 }
 
 type Option func(*UI)
@@ -60,10 +63,6 @@ func New(options ...Option) *UI {
 
 	ui.keyState = make(map[byte]bool)
 
-	for _, v := range ui.sdlKeyIDs {
-		ui.keyState[v] = false
-	}
-
 	return ui
 }
 
@@ -83,13 +82,20 @@ func (ui *UI) Init() error {
 		return fmt.Errorf("failed to init sdl: %w", err)
 	}
 
-	ui.window, ui.renderer, err = sdl.CreateWindowAndRenderer("chip8", WIDTH*ui.scale, HEIGHT*ui.scale, 0)
-	if err != nil {
-		return fmt.Errorf("failed to create window and renderer: %w", err)
+	if ui.window == nil && ui.renderer == nil {
+		ui.window, ui.renderer, err = sdl.CreateWindowAndRenderer("chip8", WIDTH*ui.scale, HEIGHT*ui.scale, 0)
+		if err != nil {
+			return fmt.Errorf("failed to create window and renderer: %w", err)
+		}
+	}
+
+	for _, v := range ui.sdlKeyIDs {
+		ui.keyState[v] = false
 	}
 
 	ui.lastTickTime = time.Now()
 	ui.keyPressed = 0xFF
+	ui.Reset()
 
 	return nil
 }
@@ -205,7 +211,19 @@ func (ui *UI) handleEvents() error {
 			return sdl.EndLoop
 		case sdl.EVENT_KEY_DOWN, sdl.EVENT_KEY_UP:
 			keyId := ui.sdlKeyIDs[event.KeyboardEvent().Key]
+
 			ui.keyState[keyId] = event.Type == sdl.EVENT_KEY_DOWN
+			if event.KeyboardEvent().Key == sdl.K_SPACE && time.Since(ui.resetTime) > 200*time.Millisecond {
+				if err := ui.ResetChip8(); err != nil {
+					return fmt.Errorf("failed to reset chip8: %w", err)
+				}
+
+				ui.resetTime = time.Now()
+			}
+
+			if event.KeyboardEvent().Key == sdl.K_M {
+				return sdl.EndLoop
+			}
 		}
 	}
 

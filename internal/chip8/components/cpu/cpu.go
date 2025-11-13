@@ -49,6 +49,16 @@ func New(mem *memory.Memory, ui *ui.UI, t *timer.Timer) *CPU {
 }
 
 func (c *CPU) Init() {
+	for i := range c.reg {
+		c.writeReg(byte(i), 0)
+	}
+
+	for i := range c.stack {
+		c.stack[i] = 0
+	}
+
+	c.Paused = false
+	c.i = 0
 	c.pc = memory.PROGRAM_RAM_START
 	c.sp = SP_INIT
 	c.pressedKey = 0xFF
