@@ -51,7 +51,7 @@ func SetLogger(logLevel string) {
 		panic("unsupported log level: " + logLevel)
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, opts))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, opts))
 
 	slog.SetDefault(logger)
 }

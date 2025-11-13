@@ -135,12 +135,14 @@ func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
 
 	for row := range sprite {
 		yDraw := byte(int(y)+row) % HEIGHT
-
 		prevXDraw := x % WIDTH
+
+		if yDraw < startYDraw {
+			continue
+		}
+
 		for offset := range lib.BYTE_SIZE {
 			xDraw := byte(int(x)+int(offset)) % WIDTH
-			// slog.Info("sprite", "xDraw", xDraw, "prevXDraw", prevXDraw, "yDraw", yDraw, "startYDraw", startYDraw)
-
 			pixel := ui.screen[xDraw][yDraw]
 			newPixel := pixel ^ lib.Bit(sprite[row], 7-offset)
 
@@ -148,17 +150,12 @@ func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
 				continue
 			}
 
-			prevXDraw = xDraw
-
 			if pixel == 1 && newPixel == 0 {
 				erased = true
 			}
 
+			prevXDraw = xDraw
 			ui.screen[xDraw][yDraw] = newPixel
-		}
-
-		if yDraw < startYDraw {
-			continue
 		}
 	}
 
