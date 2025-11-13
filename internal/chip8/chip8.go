@@ -3,6 +3,7 @@ package chip8
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/Zyko0/go-sdl3/sdl"
 	"github.com/cterence/chip8-go-v2/internal/chip8/components/cpu"
@@ -72,6 +73,7 @@ func (c8 *Chip8) LoadROM(romBytes []byte) {
 func (c8 *Chip8) Run() error {
 	c8.mem.Init()
 	c8.cpu.Init()
+	c8.timer.Init()
 
 	if err := c8.ui.Init(); err != nil {
 		return fmt.Errorf("failed to init UI: %w", err)
@@ -79,10 +81,8 @@ func (c8 *Chip8) Run() error {
 	defer c8.ui.Destroy()
 
 	var (
-		err         error
-		ticks       int
-		cycles      int
-		totalCycles int
+		err   error
+		ticks int
 	)
 
 	for err == nil {
@@ -92,10 +92,11 @@ func (c8 *Chip8) Run() error {
 			c8.cpu.Paused = true
 		}
 
-		cycles = c8.cpu.Tick()
-		totalCycles += cycles
-		err = c8.ui.Update()
-		c8.timer.Tick()
+		tickTime := time.Now()
+
+		c8.cpu.Tick()
+		err = c8.ui.Update(tickTime)
+		c8.timer.Tick(tickTime)
 
 		ticks++
 	}
