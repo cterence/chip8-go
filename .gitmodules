@@ -1,3 +1,6 @@
 [submodule "sub/chip8-test-suite"]
 	path = sub/chip8-test-suite
 	url = git@github.com:Timendus/chip8-test-suite.git
+[submodule "sub/chip8-roms"]
+	path = sub/chip8-roms
+	url = git@github.com:kripod/chip8-roms.git

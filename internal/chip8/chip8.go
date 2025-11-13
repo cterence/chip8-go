@@ -7,19 +7,20 @@ import (
 	"github.com/Zyko0/go-sdl3/sdl"
 	"github.com/cterence/chip8-go-v2/internal/chip8/components/cpu"
 	"github.com/cterence/chip8-go-v2/internal/chip8/components/memory"
+	"github.com/cterence/chip8-go-v2/internal/chip8/components/timer"
 	"github.com/cterence/chip8-go-v2/internal/chip8/components/ui"
 	"github.com/cterence/chip8-go-v2/internal/lib"
 )
 
 type Chip8 struct {
-	cpu *cpu.CPU
-	mem *memory.Memory
-	ui  *ui.UI
+	cpu   *cpu.CPU
+	mem   *memory.Memory
+	ui    *ui.UI
+	timer *timer.Timer
 
 	uiOptions []ui.Option
 
 	tickLimit int
-	scale     int
 }
 
 type Option func(*Chip8)
@@ -33,11 +34,13 @@ func New(options ...Option) *Chip8 {
 
 	mem := memory.New()
 	ui := ui.New(c8.uiOptions...)
-	cpu := cpu.New(mem, ui)
+	t := timer.New()
+	cpu := cpu.New(mem, ui, t)
 
 	c8.mem = mem
 	c8.cpu = cpu
 	c8.ui = ui
+	c8.timer = t
 
 	return c8
 }
@@ -67,6 +70,7 @@ func (c8 *Chip8) LoadROM(romBytes []byte) {
 }
 
 func (c8 *Chip8) Run() error {
+	c8.mem.Init()
 	c8.cpu.Init()
 
 	if err := c8.ui.Init(); err != nil {
@@ -74,11 +78,11 @@ func (c8 *Chip8) Run() error {
 	}
 	defer c8.ui.Destroy()
 
-	totalCycles, cycles := 0, 0
-
 	var (
-		err   error
-		ticks int
+		err         error
+		ticks       int
+		cycles      int
+		totalCycles int
 	)
 
 	for err == nil {
@@ -91,6 +95,7 @@ func (c8 *Chip8) Run() error {
 		cycles = c8.cpu.Tick()
 		totalCycles += cycles
 		err = c8.ui.Update()
+		c8.timer.Tick()
 
 		ticks++
 	}

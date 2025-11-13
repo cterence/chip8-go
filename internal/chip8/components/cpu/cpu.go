@@ -3,8 +3,10 @@ package cpu
 import (
 	"fmt"
 	"log/slog"
+	"math/rand"
 
 	"github.com/cterence/chip8-go-v2/internal/chip8/components/memory"
+	"github.com/cterence/chip8-go-v2/internal/chip8/components/timer"
 	"github.com/cterence/chip8-go-v2/internal/chip8/components/ui"
 	"github.com/cterence/chip8-go-v2/internal/lib"
 )
@@ -16,8 +18,9 @@ type register struct {
 type CPU struct {
 	Paused bool
 
-	mem *memory.Memory
-	ui  *ui.UI
+	mem   *memory.Memory
+	ui    *ui.UI
+	timer *timer.Timer
 
 	reg [REGISTER_COUNT]register
 	pc  uint16
@@ -30,14 +33,15 @@ type CPU struct {
 const (
 	REGISTER_COUNT byte   = 16
 	STACK_SIZE     byte   = 16
-	INST_MASK      uint16 = 0xFFF
+	ADDR_MASK      uint16 = 0xFFF
 	SP_INIT        uint8  = 0xFF
 )
 
-func New(mem *memory.Memory, ui *ui.UI) *CPU {
+func New(mem *memory.Memory, ui *ui.UI, t *timer.Timer) *CPU {
 	c := &CPU{
-		mem: mem,
-		ui:  ui,
+		mem:   mem,
+		ui:    ui,
+		timer: t,
 	}
 
 	return c
@@ -121,53 +125,55 @@ func (c *CPU) execute(inst uint16) int {
 			implemented = false
 		}
 	case 0x1:
-		v := inst & INST_MASK
+		v := inst & ADDR_MASK
 		name = "JP " + lib.FormatHex(v, 3)
 		c.pc = v
 	case 0x2:
-		v := inst & INST_MASK
+		v := inst & ADDR_MASK
 		name = "CALL " + lib.FormatHex(v, 3)
 
 		c.pushStack(c.pc)
 		c.pc = v
 	case 0x3:
-		name = fmt.Sprintf("SE V%s, %s", lib.FormatHex(hi0, 1), lib.FormatHex(lo, 2))
+		name = "SE V" + lib.FormatHex(hi0, 1) + ", " + lib.FormatHex(lo, 2)
 		if c.readReg(hi0) == lo {
 			c.pc += 2
 		}
 	case 0x4:
-		name = fmt.Sprintf("SNE V%s, %s", lib.FormatHex(hi0, 1), lib.FormatHex(lo, 2))
+		name = "SNE V" + lib.FormatHex(hi0, 1) + ", " + lib.FormatHex(lo, 2)
 		if c.readReg(hi0) != lo {
 			c.pc += 2
 		}
 	case 0x5:
-		name = fmt.Sprintf("SE V%s, V%s", lib.FormatHex(hi0, 1), lib.FormatHex(lo1, 1))
+		name = "SE V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 		if c.readReg(hi0) == c.readReg(lo1) {
 			c.pc += 2
 		}
 	case 0x6:
-		name = fmt.Sprintf("LD V%s, %s", lib.FormatHex(hi0, 1), lib.FormatHex(lo, 2))
+		name = "LD V" + lib.FormatHex(hi0, 1) + ", " + lib.FormatHex(lo, 2)
 		c.writeReg(hi0, lo)
 	case 0x7:
-		name = fmt.Sprintf("ADD V%s, %s", lib.FormatHex(hi0, 1), lib.FormatHex(lo, 2))
+		name = "ADD V" + lib.FormatHex(hi0, 1) + ", " + lib.FormatHex(lo, 2)
 		c.writeReg(hi0, c.readReg(hi0)+lo)
 	case 0x8:
 		switch lo0 {
 		case 0x0:
-			name = fmt.Sprintf("LD V%s, V%s", lib.FormatHex(hi0, 1), lib.FormatHex(lo1, 1))
+			name = "LD V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.writeReg(hi0, c.readReg(lo1))
 		case 0x1:
-			name = fmt.Sprintf("OR V%s, V%s", lib.FormatHex(hi0, 1), lib.FormatHex(lo1, 1))
+			name = "OR V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.writeReg(hi0, c.readReg(hi0)|c.readReg(lo1))
 		case 0x2:
-			name = fmt.Sprintf("AND V%s, V%s", lib.FormatHex(hi0, 1), lib.FormatHex(lo1, 1))
+			name = "AND V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.writeReg(hi0, c.readReg(hi0)&c.readReg(lo1))
 		case 0x3:
-			name = fmt.Sprintf("XOR V%s, V%s", lib.FormatHex(hi0, 1), lib.FormatHex(lo1, 1))
+			name = "XOR V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.writeReg(hi0, c.readReg(hi0)^c.readReg(lo1))
 		case 0x4:
-			name = fmt.Sprintf("ADD V%s, V%s", lib.FormatHex(hi0, 1), lib.FormatHex(lo1, 1))
-			v := uint16(c.readReg(hi0)) + uint16(c.readReg(lo1))
+			name = "ADD V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
+			a, b := c.readReg(hi0), c.readReg(lo1)
+			v := uint16(a) + uint16(b)
+
 			c.writeReg(hi0, byte(v))
 
 			if v > 0xFF {
@@ -176,23 +182,25 @@ func (c *CPU) execute(inst uint16) int {
 				c.writeReg(0xF, 0)
 			}
 		case 0x5:
-			name = fmt.Sprintf("SUB V%s, V%s", lib.FormatHex(hi0, 1), lib.FormatHex(lo1, 1))
-			v := c.readReg(hi0) - c.readReg(lo1)
+			name = "SUB V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1) + ""
+			a, b := c.readReg(hi0), c.readReg(lo1)
+			v := a - b
+
 			c.writeReg(hi0, v)
 
-			if c.readReg(hi0) < c.readReg(lo1) {
-				c.writeReg(0xF, 0)
-			} else {
+			if a >= b {
 				c.writeReg(0xF, 1)
+			} else {
+				c.writeReg(0xF, 0)
 			}
 		case 0x6:
-			name = fmt.Sprintf("SHR V%s {, V%s}", lib.FormatHex(hi0, 1), lib.FormatHex(lo1, 1))
+			name = "SHR V" + lib.FormatHex(hi0, 1) + " {, V" + lib.FormatHex(lo1, 1) + "}"
 			v := c.readReg(hi0)
 
-			c.writeReg(0xF, lib.Bit(v, 7))
 			c.writeReg(hi0, v>>1)
+			c.writeReg(0xF, lib.Bit(v, 0))
 		case 0x7:
-			name = fmt.Sprintf("SUBN V%s, V%s", lib.FormatHex(hi0, 1), lib.FormatHex(lo1, 1))
+			name = "SUBN V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1) + ""
 			v := c.readReg(lo1) - c.readReg(hi0)
 			c.writeReg(hi0, v)
 
@@ -202,26 +210,35 @@ func (c *CPU) execute(inst uint16) int {
 				c.writeReg(0xF, 1)
 			}
 		case 0xE:
-			name = fmt.Sprintf("SHL V%s {, V%s}", lib.FormatHex(hi0, 1), lib.FormatHex(lo1, 1))
+			name = "SHL V" + lib.FormatHex(hi0, 1) + " {, V" + lib.FormatHex(lo1, 1) + "}"
 			v := c.readReg(hi0)
 
-			c.writeReg(0xF, lib.Bit(v, 0))
 			c.writeReg(hi0, v<<1)
+			c.writeReg(0xF, lib.Bit(v, 7))
 		default:
 			implemented = false
 		}
 	case 0x9:
-		name = fmt.Sprintf("SNE V%s, V%s", lib.FormatHex(hi0, 1), lib.FormatHex(lo1, 1))
+		name = "SNE V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1) + ""
 		if c.readReg(hi0) != c.readReg(lo1) {
 			c.pc += 2
 		}
 	case 0xA:
-		v := inst & INST_MASK
+		v := inst & ADDR_MASK
 		name = "LD I, " + lib.FormatHex(v, 3)
 		slog.Debug("writeReg", "reg", "i", "v", lib.FormatHex(v, 3))
 		c.i = v
+	case 0xB:
+		v := inst & ADDR_MASK
+		name = "JP V0, " + lib.FormatHex(v, 3)
+		c.pc = v + uint16(c.readReg(0))
+	case 0xC:
+		name = "RND V" + lib.FormatHex(hi0, 1) + ", byte"
+		r := byte(rand.Intn(0xFF))
+		v := r & lo
+		c.writeReg(hi0, v)
 	case 0xD:
-		name = fmt.Sprintf("DRW V%s, V%s, %s", lib.FormatHex(hi0, 1), lib.FormatHex(lo1, 1), lib.FormatHex(lo0, 1)) //nolint:dupword
+		name = "DRW V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1) + ", " + lib.FormatHex(lo0, 1)
 		x := c.readReg(hi0)
 		y := c.readReg(lo1)
 
@@ -231,12 +248,53 @@ func (c *CPU) execute(inst uint16) int {
 			sprite[i] = c.mem.Read(c.i + uint16(i))
 		}
 
-		c.ui.DrawSprite(x, y, sprite)
+		if c.ui.DrawSprite(x, y, sprite) {
+			c.writeReg(0xF, 1)
+		} else {
+			c.writeReg(0xF, 0)
+		}
+	case 0xE:
+		switch lo {
+		case 0x9E:
+			name = "SKP V" + lib.FormatHex(hi0, 1)
+			if c.ui.IsKeyPressed(c.readReg(hi0)) {
+				c.pc += 2
+			}
+		case 0xA1:
+			name = "SKNP V" + lib.FormatHex(hi0, 1)
+			if !c.ui.IsKeyPressed(c.readReg(hi0)) {
+				c.pc += 2
+			}
+		default:
+			implemented = false
+		}
 	case 0xF:
 		switch lo {
+		case 0x07:
+			name = "LD V" + lib.FormatHex(hi0, 1) + ", DT"
+			c.writeReg(hi0, c.timer.GetDelay())
+		case 0x0A:
+			name = "LD V" + lib.FormatHex(hi0, 1) + ", K"
+
+			pressedKey := byte(0xFF)
+			for pressedKey == 0xFF {
+				pressedKey = c.ui.PollKeyPress()
+			}
+
+			c.writeReg(hi0, pressedKey)
+		case 0x15:
+			name = "LD DT, V" + lib.FormatHex(hi0, 1)
+			c.timer.SetDelay(c.readReg(hi0))
+		case 0x18:
+			name = "LD ST, V" + lib.FormatHex(hi0, 1)
+			c.timer.SetSound(c.readReg(hi0))
 		case 0x1E:
 			name = "ADD I, V" + lib.FormatHex(hi0, 1)
 			c.i = c.i + uint16(c.readReg(hi0))
+		case 0x29:
+			name = "LF F, V" + lib.FormatHex(hi0, 1)
+			digit := c.readReg(hi0)
+			c.i = uint16(digit * 5)
 		case 0x33:
 			name = "LD B, V" + lib.FormatHex(hi0, 1)
 			v := fmt.Sprintf("%03d", c.readReg(hi0))
@@ -246,14 +304,14 @@ func (c *CPU) execute(inst uint16) int {
 		case 0x55:
 			a := c.i
 
-			name = fmt.Sprintf("LD %s, V%s", lib.FormatHex(a, 2), lib.FormatHex(hi0, 1))
+			name = "LD " + lib.FormatHex(a, 2) + ", V" + lib.FormatHex(hi0, 1)
 			for x := range hi0 + 1 {
 				c.mem.Write(a+uint16(x), c.readReg(x))
 			}
 		case 0x65:
 			a := c.i
 
-			name = fmt.Sprintf("LD V%s, %s", lib.FormatHex(hi0, 1), lib.FormatHex(a, 2))
+			name = "LD V" + lib.FormatHex(hi0, 1) + ", " + lib.FormatHex(a, 2)
 			for x := range hi0 + 1 {
 				c.writeReg(x, c.mem.Read(a+uint16(x)))
 			}
