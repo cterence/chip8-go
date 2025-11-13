@@ -22,6 +22,7 @@ func main() {
 		rom       string
 		tickLimit int
 		scale     int
+		headless  bool
 	)
 
 	cmd := &cli.Command{
@@ -39,13 +40,18 @@ func main() {
 			&cli.IntFlag{
 				Name:        "tick-limit",
 				Aliases:     []string{"t"},
-				Usage:       "exit after t ticks",
+				Usage:       "pause execution after t ticks",
 				Destination: &tickLimit,
+			},
+			&cli.BoolFlag{
+				Name:        "headless",
+				Usage:       "disable ui",
+				Destination: &headless,
 			},
 			&cli.IntFlag{
 				Name:        "scale",
 				Aliases:     []string{"s"},
-				Usage:       "scale",
+				Usage:       "pixel and window scale factor",
 				Value:       8,
 				Destination: &scale,
 			},
@@ -78,6 +84,7 @@ func main() {
 				romBytes,
 				chip8.WithTickLimit(tickLimit),
 				chip8.WithScale(scale),
+				chip8.WithHeadless(headless),
 			)
 
 			return c8.Run()

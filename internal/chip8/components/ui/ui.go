@@ -219,9 +219,13 @@ func (ui *UI) handleEvents() error {
 				}
 
 				ui.resetTime = time.Now()
+
+				slog.Info("reset")
 			}
 
 			if event.KeyboardEvent().Key == sdl.K_M {
+				slog.Info("exit")
+
 				return sdl.EndLoop
 			}
 		}

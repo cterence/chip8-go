@@ -15,6 +15,7 @@ import (
 
 type Chip8 struct {
 	romBytes []byte
+	headless bool
 
 	cpu   *cpu.CPU
 	mem   *memory.Memory
@@ -64,13 +65,21 @@ func WithScale(scale int) Option {
 	}
 }
 
+func WithHeadless(headless bool) Option {
+	return func(c *Chip8) {
+		c.headless = headless
+	}
+}
+
 func (c8 *Chip8) Init() error {
 	c8.mem.Init()
 	c8.cpu.Init()
 	c8.timer.Init()
 
-	if err := c8.ui.Init(); err != nil {
-		return fmt.Errorf("failed to init UI: %w", err)
+	if !c8.headless {
+		if err := c8.ui.Init(); err != nil {
+			return fmt.Errorf("failed to init UI: %w", err)
+		}
 	}
 
 	c8.loadROM()
@@ -99,7 +108,11 @@ func (c8 *Chip8) Run() error {
 		tickTime := time.Now()
 
 		c8.cpu.Tick()
-		err = c8.ui.Update(tickTime)
+
+		if !c8.headless {
+			err = c8.ui.Update(tickTime)
+		}
+
 		c8.timer.Tick(tickTime)
 
 		ticks++
