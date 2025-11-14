@@ -4,7 +4,7 @@ A Golang CHIP8 emulator.
 
 ## Test results
 
-Automated screenshots from test runs done with [GitHub actions](./.github/workflows/golang-integration.yaml). The quirks "disp. wait" fails due to using [XVFB](https://fr.wikipedia.org/wiki/Xvfb).
+Automated screenshots from test runs done with [GitHub actions](./.github/workflows/golang-integration.yaml).
 
 |                CHIP8 logo                 |               IBM logo                |              Corax+               |
 |:-----------------------------------------:|:-------------------------------------:|:---------------------------------:|
