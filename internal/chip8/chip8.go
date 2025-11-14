@@ -26,7 +26,7 @@ type Chip8 struct {
 
 	uiOptions []ui.Option
 
-	ticks         int
+	cpuTicks      int
 	paused        bool
 	lastFrame     time.Time
 	lastTimerTick time.Time
@@ -158,8 +158,6 @@ func (c8 *Chip8) Run(ctx context.Context) error {
 				if err := c8.tick(); err != nil {
 					return err
 				}
-
-				c8.ticks++
 			}
 
 			if !c8.headless {
@@ -182,7 +180,7 @@ func (c8 *Chip8) Run(ctx context.Context) error {
 
 func (c8 *Chip8) init() error {
 	c8.paused = false
-	c8.ticks = 0
+	c8.cpuTicks = 0
 	c8.lastTimerTick = time.Now()
 	c8.lastCPUTick = time.Now()
 	c8.lastFrame = time.Now()
@@ -210,6 +208,7 @@ func (c8 *Chip8) tick() error {
 	if time.Since(c8.lastCPUTick) >= CPU_TICK_PERIOD {
 		c8.lastCPUTick = time.Now()
 		c8.cpu.Tick()
+		c8.cpuTicks++
 	}
 
 	if time.Since(c8.lastTimerTick) >= TIMER_TICK_PERIOD {
@@ -237,7 +236,7 @@ func (c8 *Chip8) loadROM() {
 }
 
 func (c8 *Chip8) handleTickLimitReached(cancel context.CancelFunc) {
-	if c8.tickLimit > 0 && c8.ticks == c8.tickLimit {
+	if c8.tickLimit > 0 && c8.cpuTicks == c8.tickLimit {
 		log.Printf("tick limit reached: %d", c8.tickLimit)
 
 		if c8.exitAfterTickLimit {
