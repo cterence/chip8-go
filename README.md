@@ -1,12 +1,16 @@
 # chip8-go
 
-A Golang CHIP8 emulator.
+A Golang CHIP-8 emulator.
 
 ## Test results
 
 Automated screenshots from test runs done with [GitHub actions](./.github/workflows/golang-integration.yaml).
 
-|                CHIP8 logo                 |               IBM logo                |              Corax+               |
+### Timendus
+
+[CHIP-8 test suite](https://github.com/Timendus/chip8-test-suite)
+
+|                CHIP-8 logo                |               IBM logo                |              Corax+               |
 |:-----------------------------------------:|:-------------------------------------:|:---------------------------------:|
 | ![chip8-logo](./results/1-chip8-logo.jpg) | ![ibm-logo](./results/2-ibm-logo.jpg) | ![corax+](./results/3-corax+.jpg) |
 
