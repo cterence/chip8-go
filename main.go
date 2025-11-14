@@ -3,12 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/cterence/chip8-go/internal/chip8"
-	"github.com/cterence/chip8-go/internal/lib"
 	"github.com/urfave/cli/v3"
 )
 
@@ -18,7 +17,7 @@ const (
 
 func main() {
 	var (
-		logLevel   string
+		debug      bool
 		rom        string
 		pauseAfter int
 		exitAfter  int
@@ -72,12 +71,11 @@ func main() {
 			},
 		},
 		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:        "log-level",
-				Aliases:     []string{"l"},
-				Usage:       "log level (debug, info, error)",
-				Value:       "info",
-				Destination: &logLevel,
+			&cli.BoolFlag{
+				Name:        "debug",
+				Aliases:     []string{"d"},
+				Usage:       "print debug logs",
+				Destination: &debug,
 			},
 			&cli.IntFlag{
 				Name:        "scale",
@@ -100,8 +98,6 @@ func main() {
 			},
 		},
 		Action: func(ctx context.Context, c *cli.Command) error {
-			lib.SetLogger(logLevel)
-
 			if rom == "" {
 				return cli.ShowSubcommandHelp(c)
 			}
@@ -118,6 +114,7 @@ func main() {
 
 			c8 := chip8.New(
 				romBytes,
+				chip8.WithDebug(debug),
 				chip8.WithPauseAfter(pauseAfter),
 				chip8.WithExitAfter(exitAfter),
 				chip8.WithScreenshot(screenshot, rom),
@@ -131,7 +128,6 @@ func main() {
 	}
 
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
-		slog.Error("runtime error", "error", err)
-		os.Exit(1)
+		log.Fatalf("runtime error: %v", err)
 	}
 }

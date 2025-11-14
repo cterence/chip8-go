@@ -2,7 +2,7 @@ package ui
 
 import (
 	"fmt"
-	"log/slog"
+	"log"
 	"path/filepath"
 	"strings"
 	"time"
@@ -211,18 +211,18 @@ func (ui *UI) Screenshot(romFileName string) {
 	screenshotFile, _ := strings.CutSuffix(filepath.Base(romFileName), ".ch8")
 	screenshotFile = fmt.Sprintf("%s-%s.jpg", screenshotFile, time.Now().Format("20060102150405"))
 
-	slog.Info("saving screenshot", "file", screenshotFile)
+	log.Printf("saving screenshot: %s", screenshotFile)
 
 	surface, err := ui.renderer.ReadPixels(nil)
 	if err != nil {
-		slog.Error("failed to get surface", "error", err)
+		log.Fatalf("failed to get surface: %v", err)
 
 		return
 	}
 	defer surface.Destroy()
 
 	if err := img.SaveJPG(surface, screenshotFile, 90); err != nil {
-		slog.Error("failed to save screenshot", "error", err)
+		log.Fatalf("failed to save screenshot: %v", err)
 
 		return
 	}
@@ -246,11 +246,11 @@ func (ui *UI) handleEvents() error {
 
 				ui.resetTime = time.Now()
 
-				slog.Info("reset")
+				log.Println("reset")
 			}
 
 			if event.KeyboardEvent().Key == sdl.K_M {
-				slog.Info("exit")
+				log.Println("exit")
 
 				return sdl.EndLoop
 			}

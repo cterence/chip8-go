@@ -17,3 +17,8 @@ Automated screenshots from test runs done with [GitHub actions](./.github/workfl
 |              Flags              |              Quirks               |
 |:-------------------------------:|:---------------------------------:|
 | ![flags](./results/4-flags.jpg) | ![quirks](./results/5-quirks.jpg) |
+
+## Improvement ideas
+
+- [ ] Load rom with drag-n-drop if not provided
+- [ ] Implement SUPER-CHIP & XO-CHIP

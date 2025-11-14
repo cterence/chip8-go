@@ -1,7 +1,6 @@
 package timer
 
 import (
-	"log/slog"
 	"time"
 
 	"github.com/gen2brain/beeep"
@@ -47,12 +46,9 @@ func (t *Timer) Tick(tickTime time.Time) {
 	if tickDuration > TARGET_UPDATE_PERIOD {
 		if t.delay > 0 {
 			t.delay--
-			slog.Debug("delay timer", "value", t.delay)
 		}
 
 		if t.sound > 1 {
-			slog.Debug("beep")
-
 			err := beeep.Beep(beeep.DefaultFreq, beeep.DefaultDuration)
 			if err != nil {
 				panic(err)
@@ -61,7 +57,6 @@ func (t *Timer) Tick(tickTime time.Time) {
 
 		if t.sound > 0 {
 			t.sound--
-			slog.Debug("sound timer", "value", t.sound)
 		}
 
 		t.lastTimerUpdate = time.Now()

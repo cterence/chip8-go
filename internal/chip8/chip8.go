@@ -3,7 +3,7 @@ package chip8
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/Zyko0/go-sdl3/sdl"
 	"github.com/cterence/chip8-go/internal/chip8/components/cpu"
+	"github.com/cterence/chip8-go/internal/chip8/components/debugger"
 	"github.com/cterence/chip8-go/internal/chip8/components/memory"
 	"github.com/cterence/chip8-go/internal/chip8/components/timer"
 	"github.com/cterence/chip8-go/internal/chip8/components/ui"
@@ -18,13 +19,15 @@ import (
 )
 
 type Chip8 struct {
-	cpu   *cpu.CPU
-	mem   *memory.Memory
-	ui    *ui.UI
-	timer *timer.Timer
+	cpu      *cpu.CPU
+	mem      *memory.Memory
+	ui       *ui.UI
+	timer    *timer.Timer
+	debugger *debugger.Debugger
 
 	uiOptions []ui.Option
 
+	debug              bool
 	romBytes           []byte
 	romFileName        string
 	headless           bool
@@ -49,15 +52,23 @@ func New(romBytes []byte, options ...Option) *Chip8 {
 	ui := ui.New(c8.uiOptions...)
 	t := timer.New()
 	cpu := cpu.New(mem, ui, t)
+	debugger := debugger.New(cpu, mem)
 
 	c8.mem = mem
 	c8.cpu = cpu
 	c8.ui = ui
 	c8.timer = t
+	c8.debugger = debugger
 
 	c8.ui.ResetChip8 = c8.Init
 
 	return c8
+}
+
+func WithDebug(debug bool) Option {
+	return func(c *Chip8) {
+		c.debug = debug
+	}
 }
 
 func WithPauseAfter(tickLimit int) Option {
@@ -144,7 +155,7 @@ func (c8 *Chip8) Run(ctx context.Context) error {
 			return nil
 		default:
 			if c8.tickLimit > 0 && ticks == c8.tickLimit {
-				slog.Info("tick limit reached", "ticks", ticks)
+				fmt.Printf("tick limit reached: %d", c8.tickLimit)
 
 				if c8.exitAfterTickLimit {
 					return nil
@@ -154,6 +165,10 @@ func (c8 *Chip8) Run(ctx context.Context) error {
 			}
 
 			tickTime := time.Now()
+
+			if c8.debug {
+				log.Println(c8.debugger.DebugLog())
+			}
 
 			c8.cpu.Tick()
 
@@ -183,7 +198,7 @@ func (c8 *Chip8) loadROM() {
 		c8.mem.Write(a, b)
 	}
 
-	slog.Debug("rom loaded", "size", l)
+	log.Printf("rom loaded: %d bytes\n", l)
 }
 
 func trapSigInt(cancel context.CancelFunc) {
