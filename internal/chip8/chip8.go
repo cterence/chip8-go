@@ -26,8 +26,11 @@ type Chip8 struct {
 
 	uiOptions []ui.Option
 
-	ticks  int
-	paused bool
+	ticks         int
+	paused        bool
+	lastFrame     time.Time
+	lastTimerTick time.Time
+	lastCPUTick   time.Time
 
 	// Options
 	debug              bool
@@ -39,6 +42,15 @@ type Chip8 struct {
 	screenshot         bool
 	testFlag           byte
 }
+
+const (
+	CTPS              = 500
+	CPU_TICK_PERIOD   = time.Second / CTPS
+	TTPS              = 60
+	TIMER_TICK_PERIOD = time.Second / TTPS
+	FPS               = 120
+	FRAME_PERIOD      = time.Second / FPS
+)
 
 type Option func(*Chip8)
 
@@ -140,22 +152,30 @@ func (c8 *Chip8) Run(ctx context.Context) error {
 		case <-rCtx.Done():
 			return nil
 		default:
-			c8.handleTickLimitReached(cancel)
-
 			if !c8.paused {
+				c8.handleTickLimitReached(cancel)
+
 				if err := c8.tick(); err != nil {
 					return err
 				}
+
+				c8.ticks++
 			}
 
 			if !c8.headless {
-				err := c8.ui.Update()
-				if err != nil {
-					return fmt.Errorf("failed to update UI: %w", err)
+				if time.Since(c8.lastFrame) >= FRAME_PERIOD && c8.ui.Draw {
+					c8.lastFrame = time.Now()
+
+					err := c8.ui.Update()
+					if err != nil {
+						return fmt.Errorf("failed to update UI: %w", err)
+					}
+				}
+
+				if err := c8.ui.HandleEvents(); err != nil {
+					return err
 				}
 			}
-
-			c8.ticks++
 		}
 	}
 }
@@ -163,6 +183,9 @@ func (c8 *Chip8) Run(ctx context.Context) error {
 func (c8 *Chip8) init() error {
 	c8.paused = false
 	c8.ticks = 0
+	c8.lastTimerTick = time.Now()
+	c8.lastCPUTick = time.Now()
+	c8.lastFrame = time.Now()
 
 	c8.mem.Init()
 	c8.cpu.Init()
@@ -184,8 +207,15 @@ func (c8 *Chip8) init() error {
 }
 
 func (c8 *Chip8) tick() error {
-	c8.cpu.Tick()
-	c8.timer.Tick(time.Now())
+	if time.Since(c8.lastCPUTick) >= CPU_TICK_PERIOD {
+		c8.lastCPUTick = time.Now()
+		c8.cpu.Tick()
+	}
+
+	if time.Since(c8.lastTimerTick) >= TIMER_TICK_PERIOD {
+		c8.lastTimerTick = time.Now()
+		c8.timer.Tick()
+	}
 
 	if c8.debug {
 		log.Println(c8.debugger.DebugLog())

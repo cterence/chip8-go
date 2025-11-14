@@ -36,3 +36,4 @@ go.work.sum
 
 main
 chip8-go
+roms/

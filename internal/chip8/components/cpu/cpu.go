@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/cterence/chip8-go/internal/chip8/components/memory"
 	"github.com/cterence/chip8-go/internal/chip8/components/timer"
@@ -37,9 +38,11 @@ type debugInfo struct {
 }
 
 const (
-	REGISTER_COUNT byte   = 16
-	STACK_SIZE     byte   = 16
-	ADDR_MASK      uint16 = 0xFFF
+	REGISTER_COUNT     byte   = 16
+	STACK_SIZE         byte   = 16
+	ADDR_MASK          uint16 = 0xFFF
+	TPS                       = 660
+	TARGET_TICK_PERIOD        = time.Second / TPS
 )
 
 func New(mem *memory.Memory, ui *ui.UI, t *timer.Timer) *CPU {

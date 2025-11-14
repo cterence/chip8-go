@@ -6,15 +6,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 
 	"github.com/Zyko0/go-sdl3/sdl"
 	"github.com/cterence/chip8-go/internal/chip8"
 	"github.com/urfave/cli/v3"
-)
-
-const (
-	ROM_EXT = ".ch8"
 )
 
 func main() {
@@ -88,6 +83,7 @@ func main() {
 			},
 			&cli.Uint8Flag{
 				Name:        "test-flag",
+				Aliases:     []string{"t"},
 				Usage:       "populate 0x1FF address before run (used by timendus tests)",
 				Destination: &testFlag,
 			},
@@ -102,11 +98,6 @@ func main() {
 		Action: func(ctx context.Context, c *cli.Command) error {
 			if rom == "" {
 				return cli.ShowSubcommandHelp(c)
-			}
-
-			ext := filepath.Ext(rom)
-			if ext != ROM_EXT {
-				return fmt.Errorf("rom file must have %s extension, actual %s", ROM_EXT, ext)
 			}
 
 			romBytes, err := os.ReadFile(rom)

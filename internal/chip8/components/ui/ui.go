@@ -14,6 +14,8 @@ import (
 )
 
 type UI struct {
+	Draw bool
+
 	scale       int
 	frameBuffer [WIDTH][HEIGHT]byte
 
@@ -24,7 +26,6 @@ type UI struct {
 	sdlKeyIDs  map[sdl.Keycode]byte
 	keyState   map[byte]bool
 
-	lastTickTime  time.Time
 	eventCooldown time.Time
 
 	ResetChip8       func() error
@@ -36,10 +37,8 @@ type UI struct {
 type Option func(*UI)
 
 const (
-	WIDTH                 = 64
-	HEIGHT                = 32
-	FPS                   = 500
-	TARGET_FRAME_DURATION = time.Second / FPS
+	WIDTH  = 64
+	HEIGHT = 32
 )
 
 func New(options ...Option) *UI {
@@ -100,7 +99,7 @@ func (ui *UI) Init() error {
 		ui.keyState[v] = false
 	}
 
-	ui.lastTickTime = time.Now()
+	ui.Draw = false
 	ui.keyPressed = 0xFF
 	ui.Reset()
 
@@ -108,15 +107,6 @@ func (ui *UI) Init() error {
 }
 
 func (ui *UI) Update() error {
-	tickDuration := time.Since(ui.lastTickTime)
-
-	if tickDuration < TARGET_FRAME_DURATION {
-		delay := TARGET_FRAME_DURATION - tickDuration
-		sdl.Delay(uint32(delay.Milliseconds()))
-	}
-
-	ui.lastTickTime = time.Now()
-
 	for x := range ui.frameBuffer {
 		for y := range ui.frameBuffer[x] {
 			rc := &sdl.FRect{
@@ -138,7 +128,9 @@ func (ui *UI) Update() error {
 		return fmt.Errorf("failed to present UI: %w", err)
 	}
 
-	return ui.handleEvents()
+	ui.Draw = false
+
+	return nil
 }
 
 func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
@@ -172,6 +164,8 @@ func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
 		}
 	}
 
+	ui.Draw = true
+
 	return collision
 }
 
@@ -181,6 +175,8 @@ func (ui *UI) Reset() {
 			ui.frameBuffer[x][y] = 0
 		}
 	}
+
+	ui.Draw = true
 }
 
 func (ui *UI) Destroy() {
@@ -232,7 +228,7 @@ func (ui *UI) Screenshot(romFileName string) {
 	}
 }
 
-func (ui *UI) handleEvents() error {
+func (ui *UI) HandleEvents() error {
 	var event sdl.Event
 
 	for sdl.PollEvent(&event) {

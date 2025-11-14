@@ -1,21 +1,13 @@
 package timer
 
 import (
-	"time"
-
 	"github.com/gen2brain/beeep"
 )
 
 type Timer struct {
-	delay           uint8
-	sound           uint8
-	lastTimerUpdate time.Time
+	delay uint8
+	sound uint8
 }
-
-const (
-	UPDATES_PER_SECOND   = 60
-	TARGET_UPDATE_PERIOD = time.Second / UPDATES_PER_SECOND
-)
 
 func New() *Timer {
 	t := &Timer{}
@@ -26,7 +18,6 @@ func New() *Timer {
 func (t *Timer) Init() {
 	t.delay = 0
 	t.sound = 0
-	t.lastTimerUpdate = time.Now()
 }
 
 func (t *Timer) GetDelay() byte {
@@ -41,24 +32,19 @@ func (t *Timer) SetSound(v byte) {
 	t.sound = v
 }
 
-func (t *Timer) Tick(tickTime time.Time) {
-	tickDuration := tickTime.Sub(t.lastTimerUpdate)
-	if tickDuration > TARGET_UPDATE_PERIOD {
-		if t.delay > 0 {
-			t.delay--
-		}
+func (t *Timer) Tick() {
+	if t.delay > 0 {
+		t.delay--
+	}
 
-		if t.sound > 1 {
-			err := beeep.Beep(beeep.DefaultFreq, beeep.DefaultDuration)
-			if err != nil {
-				panic(err)
-			}
+	if t.sound > 1 {
+		err := beeep.Beep(beeep.DefaultFreq, beeep.DefaultDuration)
+		if err != nil {
+			panic(err)
 		}
+	}
 
-		if t.sound > 0 {
-			t.sound--
-		}
-
-		t.lastTimerUpdate = time.Now()
+	if t.sound > 0 {
+		t.sound--
 	}
 }
