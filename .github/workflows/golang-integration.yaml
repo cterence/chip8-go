@@ -19,11 +19,6 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      # - name: Install dependencies
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y xvfb x11-xserver-utils libwayland-dev weston
-
       - uses: libsdl-org/setup-sdl@main
         name: Install SDL3
         id: sdl
@@ -58,30 +53,21 @@ jobs:
       - name: Unit tests
         run: go test ./...
 
-      # - name: Start weston
-      #   run: |
-      #     weston --backend=headless-backend.so --width=640 --height=320 &
-      #     sleep 2
-
       - name: Run headless test
         env:
           SDL_VIDEO_DRIVER: offscreen
         run: |
           EXIT_AFTER=1000
-          COMMAND="./chip8-go-v2 --screenshot -e"
+          COMMAND="./chip8-go-v2 --screenshot -e 1000 --test-flag 1"
           TEST_DIR="./sub/chip8-test-suite/bin"
           RESULTS_DIR="./results"
-          declare -a tests=("1-chip8-logo.ch8" "2-ibm-logo.ch8" "3-corax+.ch8" "4-flags.ch8")
+
+          declare -a tests=("1-chip8-logo.ch8" "2-ibm-logo.ch8" "3-corax+.ch8" "4-flags.ch8" "5-quirks.ch8")
 
           for test in "${tests[@]}"
           do
-            $COMMAND $EXIT_AFTER $TEST_DIR/$test
+            $COMMAND $TEST_DIR/$test
           done
-
-          EXIT_AFTER=2500
-          TEST_FLAG="--test-flag 1"
-
-          $COMMAND $EXIT_AFTER $TEST_FLAG $TEST_DIR/5-quirks.ch8
 
           mkdir -p $RESULTS_DIR
 
