@@ -19,10 +19,10 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb x11-xserver-utils libwayland-dev weston
+      # - name: Install dependencies
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y xvfb x11-xserver-utils libwayland-dev weston
 
       - uses: libsdl-org/setup-sdl@main
         name: Install SDL3
@@ -58,10 +58,10 @@ jobs:
       - name: Unit tests
         run: go test ./...
 
-      - name: Start weston
-        run: |
-          weston --backend=headless-backend.so --width=640 --height=320 &
-          sleep 2
+      # - name: Start weston
+      #   run: |
+      #     weston --backend=headless-backend.so --width=640 --height=320 &
+      #     sleep 2
 
       - name: Run headless test
         env:
