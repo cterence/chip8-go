@@ -48,7 +48,7 @@ const (
 	CPU_TICK_PERIOD   = time.Second / CTPS
 	TTPS              = 60
 	TIMER_TICK_PERIOD = time.Second / TTPS
-	FPS               = 120
+	FPS               = 60
 	FRAME_PERIOD      = time.Second / FPS
 )
 
