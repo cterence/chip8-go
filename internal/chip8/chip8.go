@@ -153,11 +153,11 @@ func (c8 *Chip8) Run(ctx context.Context) error {
 			return nil
 		default:
 			if !c8.paused {
-				c8.handleTickLimitReached(cancel)
-
 				if err := c8.tick(); err != nil {
 					return err
 				}
+
+				c8.handleTickLimitReached(cancel)
 			}
 
 			if !c8.headless {
@@ -208,16 +208,17 @@ func (c8 *Chip8) tick() error {
 	if time.Since(c8.lastCPUTick) >= CPU_TICK_PERIOD {
 		c8.lastCPUTick = time.Now()
 		c8.cpu.Tick()
+
+		if c8.debug {
+			log.Println(c8.debugger.DebugLog())
+		}
+
 		c8.cpuTicks++
 	}
 
 	if time.Since(c8.lastTimerTick) >= TIMER_TICK_PERIOD {
 		c8.lastTimerTick = time.Now()
 		c8.timer.Tick()
-	}
-
-	if c8.debug {
-		log.Println(c8.debugger.DebugLog())
 	}
 
 	return nil
