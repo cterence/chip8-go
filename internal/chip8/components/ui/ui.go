@@ -36,8 +36,10 @@ type UI struct {
 type Option func(*UI)
 
 const (
-	WIDTH  = 64
-	HEIGHT = 32
+	WIDTH                 = 64
+	HEIGHT                = 32
+	FPS                   = 500
+	TARGET_FRAME_DURATION = time.Second / FPS
 )
 
 func New(options ...Option) *UI {
@@ -88,7 +90,7 @@ func (ui *UI) Init() error {
 	}
 
 	if ui.window == nil && ui.renderer == nil {
-		ui.window, ui.renderer, err = sdl.CreateWindowAndRenderer("chip8", WIDTH*ui.scale, HEIGHT*ui.scale, 0)
+		ui.window, ui.renderer, err = sdl.CreateWindowAndRenderer("CHIP-8", WIDTH*ui.scale, HEIGHT*ui.scale, sdl.WINDOW_RESIZABLE)
 		if err != nil {
 			return fmt.Errorf("failed to create window and renderer: %w", err)
 		}
@@ -106,6 +108,13 @@ func (ui *UI) Init() error {
 }
 
 func (ui *UI) Update() error {
+	tickDuration := time.Since(ui.lastTickTime)
+
+	if tickDuration < TARGET_FRAME_DURATION {
+		delay := TARGET_FRAME_DURATION - tickDuration
+		sdl.Delay(uint32(delay.Milliseconds()))
+	}
+
 	ui.lastTickTime = time.Now()
 
 	for x := range ui.frameBuffer {
