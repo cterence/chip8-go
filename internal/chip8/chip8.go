@@ -31,6 +31,7 @@ type Chip8 struct {
 	tickLimit          int
 	exitAfterTickLimit bool
 	screenshot         bool
+	testFlag           byte
 }
 
 type Option func(*Chip8)
@@ -91,6 +92,12 @@ func WithHeadless(headless bool) Option {
 	}
 }
 
+func WithTestFlag(testFlag byte) Option {
+	return func(c *Chip8) {
+		c.testFlag = testFlag
+	}
+}
+
 func (c8 *Chip8) Init() error {
 	c8.mem.Init()
 	c8.cpu.Init()
@@ -100,6 +107,10 @@ func (c8 *Chip8) Init() error {
 		if err := c8.ui.Init(); err != nil {
 			return fmt.Errorf("failed to init UI: %w", err)
 		}
+	}
+
+	if c8.testFlag != 0 {
+		c8.mem.Write(0x1FF, c8.testFlag)
 	}
 
 	c8.loadROM()

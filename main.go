@@ -25,6 +25,7 @@ func main() {
 		scale      int
 		headless   bool
 		screenshot bool
+		testFlag   byte
 	)
 
 	cmd := &cli.Command{
@@ -85,6 +86,11 @@ func main() {
 				Value:       8,
 				Destination: &scale,
 			},
+			&cli.Uint8Flag{
+				Name:        "test-flag",
+				Usage:       "populate 0x1FF address before run (used by timendus tests)",
+				Destination: &testFlag,
+			},
 		},
 		Arguments: []cli.Argument{
 			&cli.StringArg{
@@ -117,6 +123,7 @@ func main() {
 				chip8.WithScreenshot(screenshot, rom),
 				chip8.WithScale(scale),
 				chip8.WithHeadless(headless),
+				chip8.WithTestFlag(testFlag),
 			)
 
 			return c8.Run(ctx)
