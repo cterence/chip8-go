@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb x11-xserver-utils
+          sudo apt-get install -y xvfb x11-xserver-utils libwayland-dev weston
 
       - uses: libsdl-org/setup-sdl@main
         name: Install SDL3
@@ -38,7 +38,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Install dependencies
+      - name: Install go dependencies
         run: go mod download
 
       - name: Generate code
@@ -58,10 +58,17 @@ jobs:
       - name: Unit tests
         run: go test ./...
 
+      - name: Start weston
+        run: |
+          weston --backend=headless-backend.so --width=640 --height=320 &
+          sleep 2
+
       - name: Run headless test
+        env:
+          SDL_VIDEO_DRIVER: dummy
         run: |
           EXIT_AFTER=1000
-          COMMAND="xvfb-run --auto-servernum ./chip8-go-v2 --screenshot -e"
+          COMMAND="./chip8-go-v2 --screenshot -e"
           TEST_DIR="./sub/chip8-test-suite/bin"
           RESULTS_DIR="./results"
           declare -a tests=("1-chip8-logo.ch8" "2-ibm-logo.ch8" "3-corax+.ch8" "4-flags.ch8")
