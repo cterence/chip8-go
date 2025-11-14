@@ -24,10 +24,13 @@ type UI struct {
 	sdlKeyIDs  map[sdl.Keycode]byte
 	keyState   map[byte]bool
 
-	lastTickTime time.Time
+	lastTickTime  time.Time
+	eventCooldown time.Time
 
-	ResetChip8 func() error
-	resetTime  time.Time
+	ResetChip8       func() error
+	IsChip8Paused    func() bool
+	TogglePauseChip8 func()
+	TickChip8        func() error
 }
 
 type Option func(*UI)
@@ -104,8 +107,8 @@ func (ui *UI) Init() error {
 	return nil
 }
 
-func (ui *UI) Update(tickTime time.Time) error {
-	tickDuration := tickTime.Sub(ui.lastTickTime)
+func (ui *UI) Update() error {
+	tickDuration := time.Since(ui.lastTickTime)
 
 	if tickDuration < TARGET_FRAME_DURATION {
 		delay := TARGET_FRAME_DURATION - tickDuration
@@ -236,23 +239,34 @@ func (ui *UI) handleEvents() error {
 		case sdl.EVENT_QUIT, sdl.EVENT_WINDOW_DESTROYED:
 			return sdl.EndLoop
 		case sdl.EVENT_KEY_DOWN, sdl.EVENT_KEY_UP:
-			keyId := ui.sdlKeyIDs[event.KeyboardEvent().Key]
+			key := event.KeyboardEvent().Key
+			switch key {
+			case sdl.K_1, sdl.K_2, sdl.K_3, sdl.K_4, sdl.K_Q, sdl.K_W, sdl.K_E, sdl.K_R, sdl.K_A, sdl.K_S, sdl.K_D, sdl.K_F, sdl.K_Z, sdl.K_X, sdl.K_C, sdl.K_V:
+				keyId := ui.sdlKeyIDs[key]
+				ui.keyState[keyId] = event.Type == sdl.EVENT_KEY_DOWN
+			default:
+				if time.Since(ui.eventCooldown) > 100*time.Millisecond && event.Type == sdl.EVENT_KEY_DOWN {
+					switch key {
+					case sdl.K_SPACE:
+						log.Println("reset")
 
-			ui.keyState[keyId] = event.Type == sdl.EVENT_KEY_DOWN
-			if event.KeyboardEvent().Key == sdl.K_SPACE && time.Since(ui.resetTime) > 200*time.Millisecond {
-				if err := ui.ResetChip8(); err != nil {
-					return fmt.Errorf("failed to reset chip8: %w", err)
+						if err := ui.ResetChip8(); err != nil {
+							return fmt.Errorf("failed to reset chip8: %w", err)
+						}
+					case sdl.K_P:
+						ui.TogglePauseChip8()
+					case sdl.K_T:
+						if ui.IsChip8Paused() {
+							return ui.TickChip8()
+						}
+					case sdl.K_M:
+						log.Println("exit")
+
+						return sdl.EndLoop
+					}
+
+					ui.eventCooldown = time.Now()
 				}
-
-				ui.resetTime = time.Now()
-
-				log.Println("reset")
-			}
-
-			if event.KeyboardEvent().Key == sdl.K_M {
-				log.Println("exit")
-
-				return sdl.EndLoop
 			}
 		}
 	}

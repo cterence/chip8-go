@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
+	"github.com/Zyko0/go-sdl3/sdl"
 	"github.com/cterence/chip8-go/internal/chip8"
 	"github.com/urfave/cli/v3"
 )
@@ -128,6 +130,8 @@ func main() {
 	}
 
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
-		log.Fatalf("runtime error: %v", err)
+		if !errors.Is(err, sdl.EndLoop) {
+			log.Fatalf("runtime error: %v", err)
+		}
 	}
 }

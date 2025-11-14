@@ -16,7 +16,6 @@ type register struct {
 }
 
 type CPU struct {
-	Paused     bool
 	pressedKey byte
 
 	mem   *memory.Memory
@@ -62,7 +61,6 @@ func (c *CPU) Init() {
 		c.stack[i] = 0
 	}
 
-	c.Paused = false
 	c.i = 0
 	c.pc = memory.PROGRAM_RAM_START
 	c.sp = 0
@@ -70,10 +68,8 @@ func (c *CPU) Init() {
 }
 
 func (c *CPU) Tick() {
-	if !c.Paused {
-		inst := c.decodeInstruction()
-		c.execute(inst)
-	}
+	inst := c.decodeInstruction()
+	c.execute(inst)
 }
 
 func (c *CPU) DebugInfo() string {

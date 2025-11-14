@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Zyko0/go-sdl3/sdl"
 	"github.com/cterence/chip8-go/internal/chip8/components/cpu"
 	"github.com/cterence/chip8-go/internal/chip8/components/debugger"
 	"github.com/cterence/chip8-go/internal/chip8/components/memory"
@@ -27,6 +26,10 @@ type Chip8 struct {
 
 	uiOptions []ui.Option
 
+	ticks  int
+	paused bool
+
+	// Options
 	debug              bool
 	romBytes           []byte
 	romFileName        string
@@ -60,7 +63,10 @@ func New(romBytes []byte, options ...Option) *Chip8 {
 	c8.timer = t
 	c8.debugger = debugger
 
-	c8.ui.ResetChip8 = c8.Init
+	c8.ui.ResetChip8 = c8.init
+	c8.ui.IsChip8Paused = func() bool { return c8.paused }
+	c8.ui.TogglePauseChip8 = c8.togglePause
+	c8.ui.TickChip8 = c8.tick
 
 	return c8
 }
@@ -73,13 +79,18 @@ func WithDebug(debug bool) Option {
 
 func WithPauseAfter(tickLimit int) Option {
 	return func(c *Chip8) {
-		c.tickLimit = tickLimit
+		if c.tickLimit == 0 {
+			c.tickLimit = tickLimit
+		}
 	}
 }
 
 func WithExitAfter(tickLimit int) Option {
 	return func(c *Chip8) {
-		c.tickLimit = tickLimit
+		if c.tickLimit == 0 {
+			c.tickLimit = tickLimit
+		}
+
 		c.exitAfterTickLimit = tickLimit > 0
 	}
 }
@@ -109,7 +120,50 @@ func WithTestFlag(testFlag byte) Option {
 	}
 }
 
-func (c8 *Chip8) Init() error {
+func (c8 *Chip8) Run(ctx context.Context) error {
+	rCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	trapSigInt(cancel)
+
+	if err := c8.init(); err != nil {
+		return fmt.Errorf("failed to init chip8: %w", err)
+	}
+	defer c8.ui.Destroy()
+
+	if c8.screenshot {
+		defer c8.ui.Screenshot(c8.romFileName)
+	}
+
+	for {
+		select {
+		case <-rCtx.Done():
+			return nil
+		default:
+			c8.handleTickLimitReached(cancel)
+
+			if !c8.paused {
+				if err := c8.tick(); err != nil {
+					return err
+				}
+			}
+
+			if !c8.headless {
+				err := c8.ui.Update()
+				if err != nil {
+					return fmt.Errorf("failed to update UI: %w", err)
+				}
+			}
+
+			c8.ticks++
+		}
+	}
+}
+
+func (c8 *Chip8) init() error {
+	c8.paused = false
+	c8.ticks = 0
+
 	c8.mem.Init()
 	c8.cpu.Init()
 	c8.timer.Init()
@@ -129,61 +183,12 @@ func (c8 *Chip8) Init() error {
 	return nil
 }
 
-func (c8 *Chip8) Run(ctx context.Context) error {
-	rCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
+func (c8 *Chip8) tick() error {
+	c8.cpu.Tick()
+	c8.timer.Tick(time.Now())
 
-	trapSigInt(cancel)
-
-	if err := c8.Init(); err != nil {
-		return fmt.Errorf("failed to init chip8: %w", err)
-	}
-	defer c8.ui.Destroy()
-
-	if c8.screenshot {
-		defer c8.ui.Screenshot(c8.romFileName)
-	}
-
-	var (
-		err   error
-		ticks int
-	)
-
-	for err == nil {
-		select {
-		case <-rCtx.Done():
-			return nil
-		default:
-			if c8.tickLimit > 0 && ticks == c8.tickLimit {
-				fmt.Printf("tick limit reached: %d", c8.tickLimit)
-
-				if c8.exitAfterTickLimit {
-					return nil
-				}
-
-				c8.cpu.Paused = true
-			}
-
-			tickTime := time.Now()
-
-			if c8.debug {
-				log.Println(c8.debugger.DebugLog())
-			}
-
-			c8.cpu.Tick()
-
-			if !c8.headless {
-				err = c8.ui.Update(tickTime)
-			}
-
-			c8.timer.Tick(tickTime)
-
-			ticks++
-		}
-	}
-
-	if err != nil && err != sdl.EndLoop {
-		return err
+	if c8.debug {
+		log.Println(c8.debugger.DebugLog())
 	}
 
 	return nil
@@ -199,6 +204,22 @@ func (c8 *Chip8) loadROM() {
 	}
 
 	log.Printf("rom loaded: %d bytes\n", l)
+}
+
+func (c8 *Chip8) handleTickLimitReached(cancel context.CancelFunc) {
+	if c8.tickLimit > 0 && c8.ticks == c8.tickLimit {
+		log.Printf("tick limit reached: %d", c8.tickLimit)
+
+		if c8.exitAfterTickLimit {
+			cancel()
+		}
+
+		c8.paused = true
+	}
+}
+
+func (c8 *Chip8) togglePause() {
+	c8.paused = !c8.paused
 }
 
 func trapSigInt(cancel context.CancelFunc) {
