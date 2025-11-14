@@ -33,3 +33,6 @@ go.work.sum
 
 .direnv/
 .pre-commit-config.yaml
+
+main
+chip8-go

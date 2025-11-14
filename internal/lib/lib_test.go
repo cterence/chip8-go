@@ -3,7 +3,7 @@ package lib_test
 import (
 	"testing"
 
-	"github.com/cterence/chip8-go-v2/internal/lib"
+	"github.com/cterence/chip8-go/internal/lib"
 	"github.com/stretchr/testify/assert"
 )
 

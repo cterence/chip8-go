@@ -53,11 +53,11 @@ jobs:
       - name: Unit tests
         run: go test ./...
 
-      - name: Run headless test
+      - name: Run integration tests
         env:
           SDL_VIDEO_DRIVER: offscreen
         run: |
-          COMMAND="./chip8-go-v2 --screenshot -e 2500 --test-flag 1"
+          COMMAND="./chip8-go --screenshot -e 2500 --test-flag 1"
           TEST_DIR="./sub/chip8-test-suite/bin"
           RESULTS_DIR="./results"
 

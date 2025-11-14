@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/Zyko0/go-sdl3/sdl"
-	"github.com/cterence/chip8-go-v2/internal/chip8/components/cpu"
-	"github.com/cterence/chip8-go-v2/internal/chip8/components/memory"
-	"github.com/cterence/chip8-go-v2/internal/chip8/components/timer"
-	"github.com/cterence/chip8-go-v2/internal/chip8/components/ui"
-	"github.com/cterence/chip8-go-v2/internal/lib"
+	"github.com/cterence/chip8-go/internal/chip8/components/cpu"
+	"github.com/cterence/chip8-go/internal/chip8/components/memory"
+	"github.com/cterence/chip8-go/internal/chip8/components/timer"
+	"github.com/cterence/chip8-go/internal/chip8/components/ui"
+	"github.com/cterence/chip8-go/internal/lib"
 )
 
 type Chip8 struct {

@@ -5,10 +5,10 @@ import (
 	"log/slog"
 	"math/rand"
 
-	"github.com/cterence/chip8-go-v2/internal/chip8/components/memory"
-	"github.com/cterence/chip8-go-v2/internal/chip8/components/timer"
-	"github.com/cterence/chip8-go-v2/internal/chip8/components/ui"
-	"github.com/cterence/chip8-go-v2/internal/lib"
+	"github.com/cterence/chip8-go/internal/chip8/components/memory"
+	"github.com/cterence/chip8-go/internal/chip8/components/timer"
+	"github.com/cterence/chip8-go/internal/chip8/components/ui"
+	"github.com/cterence/chip8-go/internal/lib"
 )
 
 type register struct {

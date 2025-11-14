@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cterence/chip8-go-v2/internal/chip8"
-	"github.com/cterence/chip8-go-v2/internal/lib"
+	"github.com/cterence/chip8-go/internal/chip8"
+	"github.com/cterence/chip8-go/internal/lib"
 	"github.com/urfave/cli/v3"
 )
 
@@ -29,7 +29,7 @@ func main() {
 	)
 
 	cmd := &cli.Command{
-		Name:  "c8g",
+		Name:  "chip8-go",
 		Usage: "chip8 emulator",
 		MutuallyExclusiveFlags: []cli.MutuallyExclusiveFlags{
 			{

@@ -3,7 +3,7 @@ package memory
 import (
 	"fmt"
 
-	"github.com/cterence/chip8-go-v2/internal/lib"
+	"github.com/cterence/chip8-go/internal/lib"
 )
 
 type Memory struct {

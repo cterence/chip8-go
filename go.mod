@@ -1,4 +1,4 @@
-module github.com/cterence/chip8-go-v2
+module github.com/cterence/chip8-go
 
 go 1.25.2
 
