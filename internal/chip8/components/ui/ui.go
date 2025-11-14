@@ -14,8 +14,8 @@ import (
 )
 
 type UI struct {
-	scale  int
-	screen [WIDTH][HEIGHT]byte
+	scale       int
+	frameBuffer [WIDTH][HEIGHT]byte
 
 	window   *sdl.Window
 	renderer *sdl.Renderer
@@ -36,10 +36,8 @@ type UI struct {
 type Option func(*UI)
 
 const (
-	WIDTH                 = 64
-	HEIGHT                = 32
-	FPS                   = 500
-	TARGET_FRAME_DURATION = time.Second / FPS
+	WIDTH  = 64
+	HEIGHT = 32
 )
 
 func New(options ...Option) *UI {
@@ -108,17 +106,10 @@ func (ui *UI) Init() error {
 }
 
 func (ui *UI) Update() error {
-	tickDuration := time.Since(ui.lastTickTime)
-
-	if tickDuration < TARGET_FRAME_DURATION {
-		delay := TARGET_FRAME_DURATION - tickDuration
-		sdl.Delay(uint32(delay.Milliseconds()))
-	}
-
 	ui.lastTickTime = time.Now()
 
-	for x := range ui.screen {
-		for y := range ui.screen[x] {
+	for x := range ui.frameBuffer {
+		for y := range ui.frameBuffer[x] {
 			rc := &sdl.FRect{
 				X: float32(x * ui.scale),
 				Y: float32(y * ui.scale),
@@ -126,7 +117,7 @@ func (ui *UI) Update() error {
 				H: float32(ui.scale),
 			}
 
-			if err := ui.SetColor(ui.screen[x][y]); err != nil {
+			if err := ui.SetColor(ui.frameBuffer[x][y]); err != nil {
 				return fmt.Errorf("failed to set color for pixel: %w", err)
 			}
 
@@ -142,7 +133,7 @@ func (ui *UI) Update() error {
 }
 
 func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
-	erased := false
+	collision := false
 	startYDraw := y % HEIGHT
 
 	for row := range sprite {
@@ -155,29 +146,30 @@ func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
 
 		for offset := range lib.BYTE_SIZE {
 			xDraw := byte(int(x)+int(offset)) % WIDTH
-			pixel := ui.screen[xDraw][yDraw]
-			newPixel := pixel ^ lib.Bit(sprite[row], 7-offset)
+			spritePixel := lib.Bit(sprite[row], 7-offset)
+			oldPixel := ui.frameBuffer[xDraw][yDraw]
+			newPixel := spritePixel ^ oldPixel
 
 			if xDraw < prevXDraw {
 				continue
 			}
 
-			if pixel == 1 && newPixel == 0 {
-				erased = true
+			if spritePixel == 1 && oldPixel == 1 {
+				collision = true
 			}
 
 			prevXDraw = xDraw
-			ui.screen[xDraw][yDraw] = newPixel
+			ui.frameBuffer[xDraw][yDraw] = newPixel
 		}
 	}
 
-	return erased
+	return collision
 }
 
 func (ui *UI) Reset() {
-	for x := range ui.screen {
-		for y := range ui.screen[x] {
-			ui.screen[x][y] = 0
+	for x := range ui.frameBuffer {
+		for y := range ui.frameBuffer[x] {
+			ui.frameBuffer[x][y] = 0
 		}
 	}
 }

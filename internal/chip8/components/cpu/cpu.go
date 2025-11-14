@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/cterence/chip8-go/internal/chip8/components/memory"
 	"github.com/cterence/chip8-go/internal/chip8/components/timer"
@@ -16,7 +17,8 @@ type register struct {
 }
 
 type CPU struct {
-	pressedKey byte
+	pressedKey   byte
+	lastTickTime time.Time
 
 	mem   *memory.Memory
 	ui    *ui.UI
@@ -40,6 +42,9 @@ const (
 	REGISTER_COUNT byte   = 16
 	STACK_SIZE     byte   = 16
 	ADDR_MASK      uint16 = 0xFFF
+
+	TPS                     = 500
+	TARGET_TICKS_PER_SECOND = time.Second / TPS
 )
 
 func New(mem *memory.Memory, ui *ui.UI, t *timer.Timer) *CPU {
@@ -68,6 +73,12 @@ func (c *CPU) Init() {
 }
 
 func (c *CPU) Tick() {
+	if time.Since(c.lastTickTime) < TARGET_TICKS_PER_SECOND {
+		throttle := TARGET_TICKS_PER_SECOND - time.Since(c.lastTickTime)
+		time.Sleep(throttle)
+	}
+
+	c.lastTickTime = time.Now()
 	inst := c.decodeInstruction()
 	c.execute(inst)
 }
