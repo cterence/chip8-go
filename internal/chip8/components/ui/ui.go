@@ -14,13 +14,13 @@ import (
 )
 
 type UI struct {
-	Draw bool
-
 	scale       int
 	frameBuffer [WIDTH][HEIGHT]byte
 
 	window   *sdl.Window
 	renderer *sdl.Renderer
+	texture  *sdl.Texture
+	surface  *sdl.Surface
 
 	keyPressed byte
 	sdlKeyIDs  map[sdl.Keycode]byte
@@ -95,11 +95,24 @@ func (ui *UI) Init() error {
 		}
 	}
 
+	if ui.texture == nil {
+		ui.texture, err = ui.renderer.CreateTexture(sdl.PIXELFORMAT_ARGB8888, sdl.TEXTUREACCESS_STREAMING, WIDTH*ui.scale, HEIGHT*ui.scale)
+		if err != nil {
+			return fmt.Errorf("failed to create SDL texture: %w", err)
+		}
+	}
+
+	if ui.surface == nil {
+		ui.surface, err = sdl.CreateSurface(WIDTH*ui.scale, HEIGHT*ui.scale, sdl.PIXELFORMAT_ARGB8888)
+		if err != nil {
+			return fmt.Errorf("failed to create SDL surface: %w", err)
+		}
+	}
+
 	for _, v := range ui.sdlKeyIDs {
 		ui.keyState[v] = false
 	}
 
-	ui.Draw = false
 	ui.keyPressed = 0xFF
 	ui.Reset()
 
@@ -109,26 +122,36 @@ func (ui *UI) Init() error {
 func (ui *UI) Update() error {
 	for x := range ui.frameBuffer {
 		for y := range ui.frameBuffer[x] {
-			rc := &sdl.FRect{
-				X: float32(x * ui.scale),
-				Y: float32(y * ui.scale),
-				W: float32(ui.scale),
-				H: float32(ui.scale),
+			rc := &sdl.Rect{
+				X: int32(x * ui.scale),
+				Y: int32(y * ui.scale),
+				W: int32(ui.scale),
+				H: int32(ui.scale),
 			}
 
-			if err := ui.SetColor(ui.frameBuffer[x][y]); err != nil {
-				return fmt.Errorf("failed to set color for pixel: %w", err)
-			}
+			color := uint32(ui.frameBuffer[x][y]) * 0xFFFFFFFF
 
-			ui.renderer.RenderFillRect(rc)
+			if err := ui.surface.FillRect(rc, color); err != nil {
+				return fmt.Errorf("failed to fill rect: %w", err)
+			}
 		}
+	}
+
+	if err := ui.texture.Update(nil, ui.surface.Pixels(), ui.surface.Pitch); err != nil {
+		return fmt.Errorf("failed to update texture: %w", err)
+	}
+
+	if err := ui.renderer.Clear(); err != nil {
+		return fmt.Errorf("failed to clear renderer: %w", err)
+	}
+
+	if err := ui.renderer.RenderTexture(ui.texture, nil, nil); err != nil {
+		return fmt.Errorf("failed to render texture: %w", err)
 	}
 
 	if err := ui.renderer.Present(); err != nil {
 		return fmt.Errorf("failed to present UI: %w", err)
 	}
-
-	ui.Draw = false
 
 	return nil
 }
@@ -164,8 +187,6 @@ func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
 		}
 	}
 
-	ui.Draw = true
-
 	return collision
 }
 
@@ -175,20 +196,12 @@ func (ui *UI) Reset() {
 			ui.frameBuffer[x][y] = 0
 		}
 	}
-
-	ui.Draw = true
 }
 
 func (ui *UI) Destroy() {
 	sdl.Quit()
 	ui.renderer.Destroy()
 	ui.window.Destroy()
-}
-
-func (ui *UI) SetColor(pixel byte) error {
-	lib.Assert(pixel == 0 || pixel == 1, fmt.Errorf("pixel must be 0 or 1, actual %d", pixel))
-
-	return ui.renderer.SetDrawColor(pixel*255, pixel*255, pixel*255, pixel*255)
 }
 
 func (ui *UI) IsKeyPressed(key byte) bool {

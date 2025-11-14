@@ -161,7 +161,7 @@ func (c8 *Chip8) Run(ctx context.Context) error {
 			}
 
 			if !c8.headless {
-				if time.Since(c8.lastFrame) >= FRAME_PERIOD && c8.ui.Draw {
+				if time.Since(c8.lastFrame) >= FRAME_PERIOD {
 					c8.lastFrame = time.Now()
 
 					err := c8.ui.Update()
@@ -176,6 +176,18 @@ func (c8 *Chip8) Run(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+func (c8 *Chip8) loadROM() {
+	l := len(c8.romBytes)
+	lib.Assert(l <= int(memory.PROGRAM_RAM_SIZE), fmt.Errorf("rom file size %d is bigger than chip8 program ram %d", l, memory.PROGRAM_RAM_SIZE))
+
+	for i, b := range c8.romBytes {
+		a := uint16(i) + memory.PROGRAM_RAM_START
+		c8.mem.Write(a, b)
+	}
+
+	log.Printf("rom loaded: %d bytes\n", l)
 }
 
 func (c8 *Chip8) init() error {
@@ -222,18 +234,6 @@ func (c8 *Chip8) tick() error {
 	}
 
 	return nil
-}
-
-func (c8 *Chip8) loadROM() {
-	l := len(c8.romBytes)
-	lib.Assert(l <= int(memory.PROGRAM_RAM_SIZE), fmt.Errorf("rom file size %d is bigger than chip8 program ram %d", l, memory.PROGRAM_RAM_SIZE))
-
-	for i, b := range c8.romBytes {
-		a := uint16(i) + memory.PROGRAM_RAM_START
-		c8.mem.Write(a, b)
-	}
-
-	log.Printf("rom loaded: %d bytes\n", l)
 }
 
 func (c8 *Chip8) handleTickLimitReached(cancel context.CancelFunc) {
