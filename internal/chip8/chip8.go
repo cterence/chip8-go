@@ -47,7 +47,7 @@ type Chip8 struct {
 }
 
 const (
-	CTPS = 550
+	CTPS = 500
 	TTPS = 60
 	FPS  = 60
 )

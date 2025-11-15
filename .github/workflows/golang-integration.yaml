@@ -36,9 +36,6 @@ jobs:
       - name: Install go dependencies
         run: go mod download
 
-      - name: Generate code
-        run: go generate ./...
-
       - name: Vet
         run: go vet ./...
 
@@ -55,7 +52,7 @@ jobs:
 
       - name: Run integration tests
         env:
-          SDL_VIDEO_DRIVER: dummy
+          SDL_VIDEO_DRIVER: offscreen
         run: |
           COMMAND="./chip8-go --screenshot"
           TEST_DIR="./sub/chip8-test-suite/bin"
