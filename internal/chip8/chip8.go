@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Zyko0/go-sdl3/bin/binsdl"
 	"github.com/Zyko0/go-sdl3/sdl"
 	"github.com/cterence/chip8-go/internal/chip8/components/cpu"
 	"github.com/cterence/chip8-go/internal/chip8/components/debugger"
@@ -156,9 +157,10 @@ func (c8 *Chip8) Run(ctx context.Context) error {
 	trapSigInt(cancel)
 
 	if !c8.headless {
-		if err := sdl.LoadLibrary(sdl.Path()); err != nil {
-			return fmt.Errorf("failed to load sdl library: %w", err)
-		}
+		defer binsdl.Load().Unload()
+		// if err := sdl.LoadLibrary(sdl.Path()); err != nil {
+		// 	return fmt.Errorf("failed to load sdl library: %w", err)
+		// }
 		defer sdl.Quit()
 		defer c8.ui.Destroy()
 

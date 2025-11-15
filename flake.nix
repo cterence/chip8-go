@@ -40,13 +40,12 @@
         {
           default = pkgs.mkShell {
             shellHook = ''
-              export LD_LIBRARY_PATH=${pkgs.lib.getLib pkgs.sdl3}/lib:$LD_LIBRARY_PATH
+              export LD_LIBRARY_PATH=${pkgs.lib.getLib pkgs.wayland}/lib:${pkgs.lib.getLib pkgs.libGL}/lib:${pkgs.lib.getLib pkgs.libdecor}/lib:${pkgs.lib.getLib pkgs.libxkbcommon}/lib:$LD_LIBRARY_PATH
               ${self.checks.${pkgs.system}.pre-commit-check.shellHook}
             '';
             hardeningDisable = [ "fortify" ]; # Make delve work with direnv IDE extension
             nativeBuildInputs = with pkgs; [
               go
-              sdl3
             ];
             packages = with pkgs; [
               air
