@@ -135,8 +135,8 @@ func (ui *UI) Update() error {
 	for x := range ui.frameBuffer {
 		for y := range ui.frameBuffer[x] {
 			rc := &sdl.Rect{
-				X: int32(x * ui.scale * ui.res),
-				Y: int32(y * ui.scale * ui.res),
+				X: int32(x * ui.scale),
+				Y: int32(y * ui.scale),
 				W: int32(ui.scale * ui.res),
 				H: int32(ui.scale * ui.res),
 			}
@@ -181,18 +181,18 @@ func (ui *UI) ToggleHiRes(enable bool) {
 
 func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
 	collision := false
-	startYDraw := y % HEIGHT
+	startYDraw := (y * byte(ui.res)) % HEIGHT
 
 	for row := range sprite {
-		yDraw := byte(int(y)+row) % HEIGHT
-		prevXDraw := x % WIDTH
+		yDraw := byte((int(y)+row)*ui.res) % HEIGHT
+		prevXDraw := (x * byte(ui.res)) % WIDTH
 
 		if yDraw < startYDraw {
 			continue
 		}
 
 		for offset := range lib.BYTE_SIZE {
-			xDraw := byte(int(x)+int(offset)) % WIDTH
+			xDraw := byte((int(x)+int(offset))*ui.res) % WIDTH
 			spritePixel := lib.Bit(sprite[row], 7-offset)
 			oldPixel := ui.frameBuffer[xDraw][yDraw]
 			newPixel := spritePixel ^ oldPixel
@@ -206,7 +206,13 @@ func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
 			}
 
 			prevXDraw = xDraw
+
 			ui.frameBuffer[xDraw][yDraw] = newPixel
+			if ui.res == 2 {
+				ui.frameBuffer[xDraw+1][yDraw] = newPixel
+				ui.frameBuffer[xDraw][yDraw+1] = newPixel
+				ui.frameBuffer[xDraw+1][yDraw+1] = newPixel
+			}
 		}
 	}
 
