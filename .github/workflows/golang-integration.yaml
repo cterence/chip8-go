@@ -61,13 +61,32 @@ jobs:
           TEST_DIR="./sub/chip8-test-suite/bin"
           RESULTS_DIR="./results"
 
+          mvimg () {
+            for img in $(ls | grep .jpg)
+            do
+              NEW_NAME=$(echo $img | sed -E 's/-[0-9]+./$1./g')
+              mv $img $NEW_NAME
+              mv $NEW_NAME $RESULTS_DIR
+            done
+          }
+
+          mkdir -p $RESULTS_DIR
+
           ./chip8-go --screenshot -e 50 $TEST_DIR/1-chip8-logo.ch8
           ./chip8-go --screenshot -e 50 $TEST_DIR/2-ibm-logo.ch8
           ./chip8-go --screenshot -e 350 $TEST_DIR/3-corax+.ch8
           ./chip8-go --screenshot -e 1000 $TEST_DIR/4-flags.ch8
           ./chip8-go --screenshot -e 2500 -t 1 $TEST_DIR/5-quirks.ch8
+          mvimg ""
+          ./chip8-go --screenshot -e 300 -t 1 $TEST_DIR/8-scrolling.ch8
+          mvimg "-super-lores"
+          ./chip8-go --screenshot -e 300 -t 3 $TEST_DIR/8-scrolling.ch8
+          mvimg "-super-hires"
+          ./chip8-go --screenshot -e 300 -t 4 $TEST_DIR/8-scrolling.ch8
+          mvimg "-xo-lores"
+          ./chip8-go --screenshot -e 300 -t 5 $TEST_DIR/8-scrolling.ch8
+          mvimg "-xo-hires"
 
-          mkdir -p $RESULTS_DIR
 
           for img in $(ls | grep .jpg)
           do

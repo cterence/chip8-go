@@ -140,13 +140,41 @@ func (c *CPU) execute(inst uint16) {
 
 	switch hi1 {
 	case 0x0:
-		switch lo0 {
-		case 0x0:
-			c.debugInfo.inst = "CLS"
-			c.ui.Reset()
+		switch lo1 {
 		case 0xE:
-			c.debugInfo.inst = "RET"
-			c.pc = c.popStack()
+			switch lo0 {
+			case 0x0:
+				c.debugInfo.inst = "CLS"
+				c.ui.Reset()
+			case 0xE:
+				c.debugInfo.inst = "RET"
+				c.pc = c.popStack()
+			default:
+				implemented = false
+			}
+		case 0xC:
+			c.debugInfo.inst = "SCD " + lib.FormatHex(lo0, 1)
+			c.ui.Scroll(ui.SD_DOWN, int(lo0))
+		case 0xD:
+			c.debugInfo.inst = "SCU " + lib.FormatHex(lo0, 1)
+			c.ui.Scroll(ui.SD_UP, int(lo0))
+		case 0xF:
+			switch lo0 {
+			case 0xB:
+				c.debugInfo.inst = "SCR 4"
+				c.ui.Scroll(ui.SD_RIGHT, 4)
+			case 0xC:
+				c.debugInfo.inst = "SCL 4"
+				c.ui.Scroll(ui.SD_LEFT, 4)
+			case 0xE:
+				c.debugInfo.inst = "LORES"
+				c.ui.ToggleHiRes(false)
+			case 0xF:
+				c.debugInfo.inst = "HIRES"
+				c.ui.ToggleHiRes(true)
+			default:
+				implemented = false
+			}
 		default:
 			implemented = false
 		}

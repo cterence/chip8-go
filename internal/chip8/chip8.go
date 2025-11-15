@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Zyko0/go-sdl3/sdl"
 	"github.com/cterence/chip8-go/internal/chip8/components/cpu"
 	"github.com/cterence/chip8-go/internal/chip8/components/debugger"
 	"github.com/cterence/chip8-go/internal/chip8/components/memory"
@@ -41,15 +42,13 @@ type Chip8 struct {
 	exitAfterTickLimit bool
 	screenshot         bool
 	testFlag           byte
+	speed              float32
 }
 
 const (
-	CTPS              = 500
-	CPU_TICK_PERIOD   = time.Second / CTPS
-	TTPS              = 60
-	TIMER_TICK_PERIOD = time.Second / TTPS
-	FPS               = 60
-	FRAME_PERIOD      = time.Second / FPS
+	CTPS = 500
+	TTPS = 60
+	FPS  = 60
 )
 
 type Option func(*Chip8)
@@ -120,6 +119,12 @@ func WithScale(scale int) Option {
 	}
 }
 
+func WithSpeed(speed float32) Option {
+	return func(c *Chip8) {
+		c.speed = speed
+	}
+}
+
 func WithHeadless(headless bool) Option {
 	return func(c *Chip8) {
 		c.headless = headless
@@ -132,19 +137,38 @@ func WithTestFlag(testFlag byte) Option {
 	}
 }
 
+func (c8 *Chip8) GetCPUPeriod() time.Duration {
+	return time.Duration(float32(time.Second) / (CTPS * c8.speed))
+}
+
+func (c8 *Chip8) GetTimerPeriod() time.Duration {
+	return time.Duration(float32(time.Second) / (TTPS * c8.speed))
+}
+
+func (c8 *Chip8) GetUIPeriod() time.Duration {
+	return time.Duration(float32(time.Second) / FPS)
+}
+
 func (c8 *Chip8) Run(ctx context.Context) error {
 	rCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	trapSigInt(cancel)
 
+	if !c8.headless {
+		if err := sdl.LoadLibrary(sdl.Path()); err != nil {
+			return fmt.Errorf("failed to load sdl library: %w", err)
+		}
+		defer sdl.Quit()
+		defer c8.ui.Destroy()
+
+		if c8.screenshot {
+			defer c8.ui.Screenshot(c8.romFileName)
+		}
+	}
+
 	if err := c8.init(); err != nil {
 		return fmt.Errorf("failed to init chip8: %w", err)
-	}
-	defer c8.ui.Destroy()
-
-	if c8.screenshot {
-		defer c8.ui.Screenshot(c8.romFileName)
 	}
 
 	for {
@@ -161,7 +185,7 @@ func (c8 *Chip8) Run(ctx context.Context) error {
 			}
 
 			if !c8.headless {
-				if time.Since(c8.lastFrame) >= FRAME_PERIOD {
+				if time.Since(c8.lastFrame) >= c8.GetUIPeriod() {
 					c8.lastFrame = time.Now()
 
 					err := c8.ui.Update()
@@ -217,7 +241,7 @@ func (c8 *Chip8) init() error {
 }
 
 func (c8 *Chip8) tick() error {
-	if time.Since(c8.lastCPUTick) >= CPU_TICK_PERIOD {
+	if time.Since(c8.lastCPUTick) >= c8.GetCPUPeriod() {
 		c8.lastCPUTick = time.Now()
 		c8.cpu.Tick()
 
@@ -228,7 +252,7 @@ func (c8 *Chip8) tick() error {
 		c8.cpuTicks++
 	}
 
-	if time.Since(c8.lastTimerTick) >= TIMER_TICK_PERIOD {
+	if time.Since(c8.lastTimerTick) >= c8.GetTimerPeriod() {
 		c8.lastTimerTick = time.Now()
 		c8.timer.Tick()
 	}

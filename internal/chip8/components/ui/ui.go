@@ -26,7 +26,10 @@ type UI struct {
 	sdlKeyIDs  map[sdl.Keycode]byte
 	keyState   map[byte]bool
 
-	eventCooldown time.Time
+	res             int
+	eventCooldown   time.Time
+	scrollDirection ScrollDirection
+	scrollPixels    int32
 
 	ResetChip8       func() error
 	IsChip8Paused    func() bool
@@ -37,8 +40,18 @@ type UI struct {
 type Option func(*UI)
 
 const (
-	WIDTH  = 64
-	HEIGHT = 32
+	WIDTH  = 128
+	HEIGHT = 64
+)
+
+type ScrollDirection uint8
+
+const (
+	SD_NONE ScrollDirection = iota
+	SD_LEFT
+	SD_RIGHT
+	SD_DOWN
+	SD_UP
 )
 
 func New(options ...Option) *UI {
@@ -79,10 +92,6 @@ func WithScale(scale int) Option {
 }
 
 func (ui *UI) Init() error {
-	if err := sdl.LoadLibrary(sdl.Path()); err != nil {
-		return fmt.Errorf("failed to load sdl: %w", err)
-	}
-
 	err := sdl.Init(sdl.INIT_VIDEO)
 	if err != nil {
 		return fmt.Errorf("failed to init sdl: %w", err)
@@ -113,6 +122,9 @@ func (ui *UI) Init() error {
 		ui.keyState[v] = false
 	}
 
+	ui.scrollDirection = SD_NONE
+	ui.scrollPixels = 0
+	ui.res = 2
 	ui.keyPressed = 0xFF
 	ui.Reset()
 
@@ -123,10 +135,10 @@ func (ui *UI) Update() error {
 	for x := range ui.frameBuffer {
 		for y := range ui.frameBuffer[x] {
 			rc := &sdl.Rect{
-				X: int32(x * ui.scale),
-				Y: int32(y * ui.scale),
-				W: int32(ui.scale),
-				H: int32(ui.scale),
+				X: int32(x * ui.scale * ui.res),
+				Y: int32(y * ui.scale * ui.res),
+				W: int32(ui.scale * ui.res),
+				H: int32(ui.scale * ui.res),
 			}
 
 			color := uint32(ui.frameBuffer[x][y]) * 0xFFFFFFFF
@@ -136,6 +148,9 @@ func (ui *UI) Update() error {
 			}
 		}
 	}
+
+	ui.scrollDirection = SD_NONE
+	ui.scrollPixels = 0
 
 	if err := ui.texture.Update(nil, ui.surface.Pixels(), ui.surface.Pitch); err != nil {
 		return fmt.Errorf("failed to update texture: %w", err)
@@ -154,6 +169,14 @@ func (ui *UI) Update() error {
 	}
 
 	return nil
+}
+
+func (ui *UI) ToggleHiRes(enable bool) {
+	if enable {
+		ui.res = 1
+	} else {
+		ui.res = 2
+	}
 }
 
 func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
@@ -199,7 +222,6 @@ func (ui *UI) Reset() {
 }
 
 func (ui *UI) Destroy() {
-	sdl.Quit()
 	ui.renderer.Destroy()
 	ui.window.Destroy()
 }
@@ -239,6 +261,23 @@ func (ui *UI) Screenshot(romFileName string) {
 
 		return
 	}
+}
+
+func (ui *UI) Scroll(sd ScrollDirection, pixels int) {
+	var tmpBuf [WIDTH][HEIGHT]byte
+
+	for x := range ui.frameBuffer {
+		for y := range ui.frameBuffer[x] {
+			newX, newY := ui.scrolledCoords(x, y, sd, pixels)
+			if newX < 0 || newY < 0 || newX >= WIDTH || newY >= HEIGHT {
+				continue
+			}
+
+			tmpBuf[newX][newY] = ui.frameBuffer[x][y]
+		}
+	}
+
+	copy(ui.frameBuffer[:][:], tmpBuf[:][:])
 }
 
 func (ui *UI) HandleEvents() error {
@@ -282,4 +321,21 @@ func (ui *UI) HandleEvents() error {
 	}
 
 	return nil
+}
+
+func (ui *UI) scrolledCoords(x, y int, sd ScrollDirection, pixels int) (int, int) {
+	newX, newY := x, y
+
+	switch sd {
+	case SD_LEFT:
+		newX -= pixels
+	case SD_RIGHT:
+		newX += pixels
+	case SD_UP:
+		newY -= pixels
+	case SD_DOWN:
+		newY += pixels
+	}
+
+	return newX, newY
 }

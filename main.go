@@ -22,6 +22,7 @@ func main() {
 		headless   bool
 		screenshot bool
 		testFlag   byte
+		speed      float32
 	)
 
 	cmd := &cli.Command{
@@ -74,11 +75,17 @@ func main() {
 				Usage:       "print debug logs",
 				Destination: &debug,
 			},
+			&cli.Float32Flag{
+				Name:        "speed",
+				Aliases:     []string{"s"},
+				Usage:       "emulator speed",
+				Value:       1.0,
+				Destination: &speed,
+			},
 			&cli.IntFlag{
 				Name:        "scale",
-				Aliases:     []string{"s"},
 				Usage:       "pixel and window scale factor",
-				Value:       8,
+				Value:       4,
 				Destination: &scale,
 			},
 			&cli.Uint8Flag{
@@ -112,6 +119,7 @@ func main() {
 				chip8.WithExitAfter(exitAfter),
 				chip8.WithScreenshot(screenshot, rom),
 				chip8.WithScale(scale),
+				chip8.WithSpeed(speed),
 				chip8.WithHeadless(headless),
 				chip8.WithTestFlag(testFlag),
 			)
