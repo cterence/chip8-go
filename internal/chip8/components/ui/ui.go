@@ -97,10 +97,6 @@ func (ui *UI) Init() error {
 		return fmt.Errorf("failed to init sdl: %w", err)
 	}
 
-	for i := 0; i < sdl.GetNumVideoDrivers(); i++ {
-		fmt.Println("driver:", sdl.GetVideoDriver(i))
-	}
-
 	if ui.window == nil && ui.renderer == nil {
 		ui.window, ui.renderer, err = sdl.CreateWindowAndRenderer("CHIP-8", WIDTH*ui.scale, HEIGHT*ui.scale, sdl.WINDOW_RESIZABLE)
 		if err != nil {
