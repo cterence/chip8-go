@@ -334,13 +334,13 @@ func (ui *UI) scrolledCoords(x, y int, sd ScrollDirection, pixels int) (int, int
 
 	switch sd {
 	case SD_LEFT:
-		newX -= pixels
+		newX -= pixels * ui.res
 	case SD_RIGHT:
-		newX += pixels
+		newX += pixels * ui.res
 	case SD_UP:
-		newY -= pixels
+		newY -= pixels * ui.res
 	case SD_DOWN:
-		newY += pixels
+		newY += pixels * ui.res
 	}
 
 	return newX, newY
