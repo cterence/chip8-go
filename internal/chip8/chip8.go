@@ -229,8 +229,6 @@ func (c8 *Chip8) loadROM() {
 		a := uint16(i) + memory.PROGRAM_RAM_START
 		c8.mem.Write(a, b)
 	}
-
-	log.Printf("rom loaded: %d bytes\n", l)
 }
 
 func (c8 *Chip8) init() error {

@@ -68,8 +68,10 @@ func (t *Timer) Init() error {
 		}
 	}
 
-	if err := t.device.BindAudioStream(t.audioStream); err != nil {
-		return fmt.Errorf("failed to bind audio stream to device: %w", err)
+	if t.audioStream.Device() == 0 {
+		if err := t.device.BindAudioStream(t.audioStream); err != nil {
+			return fmt.Errorf("failed to bind audio stream to device: %w", err)
+		}
 	}
 
 	t.beep = generateBeep(int(spec.Freq), 440, 0.1)

@@ -25,6 +25,8 @@ Automated screenshots from test runs done with [GitHub actions](./.github/workfl
 ## Improvement ideas
 
 - [x] Embed SDL3
+- [ ] Adjust speed dynamically
+- [ ] Change window title when game paused
 - [ ] Implement SUPER-CHIP
 - [ ] Implement XO-CHIP
 - [ ] Load rom with drag-n-drop if not provided

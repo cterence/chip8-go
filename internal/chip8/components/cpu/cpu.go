@@ -1,9 +1,12 @@
 package cpu
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -37,6 +40,10 @@ type CPU struct {
 	debugInfo debugInfo
 
 	SetCurrentTPS func(float32)
+}
+
+type regStorage struct {
+	Registers [REGISTER_COUNT]register
 }
 
 type Option func(*CPU)
@@ -503,6 +510,67 @@ func (c *CPU) execute(inst uint16) {
 			if c.compatibilityMode == CM_CHIP8 {
 				c.i++
 			}
+		case 0x75:
+			c.debugInfo.inst = "SF V" + lib.FormatHex(hi0, 1)
+
+			homeDir, err := os.UserHomeDir()
+			if err != nil {
+				log.Println("failed to save flags: %w", err)
+
+				break
+			}
+
+			flagDir := filepath.Join(homeDir, ".local/share/chip8-go")
+
+			err = os.MkdirAll(flagDir, 0755)
+			if err != nil {
+				log.Println("failed to save flags: %w", err)
+
+				break
+			}
+
+			storage := regStorage{Registers: c.reg}
+
+			data, err := json.Marshal(storage)
+			if err != nil {
+				log.Println("failed to save flags: %w", err)
+
+				break
+			}
+
+			err = os.WriteFile(filepath.Join(flagDir, "flags.json"), data, 0644)
+			if err != nil {
+				log.Println("failed to save flags: %w", err)
+
+				break
+			}
+		case 0x85:
+			c.debugInfo.inst = "LF V" + lib.FormatHex(hi0, 1)
+
+			homeDir, err := os.UserHomeDir()
+			if err != nil {
+				log.Println("failed to load flags: %w", err)
+
+				break
+			}
+
+			data, err := os.ReadFile(filepath.Join(homeDir, ".local/share/chip8-go/flags.json"))
+			if err != nil {
+				log.Println("failed to load flags: %w", err)
+
+				break
+			}
+
+			var storage regStorage
+
+			err = json.Unmarshal(data, &storage)
+			if err != nil {
+				log.Println("failed to load flags: %w", err)
+
+				break
+			}
+
+			copy(c.reg[:], storage.Registers[:])
 		default:
 			implemented = false
 		}
