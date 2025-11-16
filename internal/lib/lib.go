@@ -19,10 +19,8 @@ func Assert(condition bool, errorMsg error) {
 	}
 }
 
-func Bit(b byte, pos byte) byte {
-	Assert(pos < BYTE_SIZE, fmt.Errorf("pos must be lower than %d, actual %d", BYTE_SIZE, pos))
-
-	return (b >> pos) & 1
+func Bit[T constraints.Unsigned](b T, pos T) byte {
+	return byte((b >> pos) & 1)
 }
 
 func SetBit(b byte, pos byte) byte {

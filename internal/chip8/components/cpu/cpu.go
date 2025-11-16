@@ -2,6 +2,7 @@ package cpu
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"strings"
 	"time"
@@ -17,7 +18,10 @@ type register struct {
 }
 
 type CPU struct {
-	pressedKey byte
+	pressedKey              byte
+	forcedCompatibilityMode bool
+	compatibilityMode       CompatibilityMode
+	ticks                   int
 
 	mem   *memory.Memory
 	ui    *ui.UI
@@ -31,7 +35,11 @@ type CPU struct {
 	sp    uint8
 
 	debugInfo debugInfo
+
+	SetCurrentTPS func(float32)
 }
+
+type Option func(*CPU)
 
 type debugInfo struct {
 	inst string
@@ -45,14 +53,34 @@ const (
 	TARGET_TICK_PERIOD        = time.Second / TPS
 )
 
-func New(mem *memory.Memory, ui *ui.UI, t *timer.Timer) *CPU {
+type CompatibilityMode uint8
+
+const (
+	CM_NONE CompatibilityMode = iota
+	CM_CHIP8
+	CM_SUPERCHIP
+	CM_XOCHIP
+)
+
+func New(mem *memory.Memory, ui *ui.UI, t *timer.Timer, options ...Option) *CPU {
 	c := &CPU{
 		mem:   mem,
 		ui:    ui,
 		timer: t,
 	}
 
+	for _, o := range options {
+		o(c)
+	}
+
 	return c
+}
+
+func WithCompatibilityMode(mode CompatibilityMode) Option {
+	return func(c *CPU) {
+		c.compatibilityMode = mode
+		c.forcedCompatibilityMode = mode != CM_NONE
+	}
 }
 
 func (c *CPU) Init() {
@@ -68,17 +96,21 @@ func (c *CPU) Init() {
 	c.pc = memory.PROGRAM_RAM_START
 	c.sp = 0
 	c.pressedKey = 0xFF
+	c.updateCompatibilityMode(c.compatibilityMode)
+	c.ticks = 0
 }
 
 func (c *CPU) Tick() {
 	inst := c.decodeInstruction()
 	c.execute(inst)
+	c.ticks++
 }
 
 func (c *CPU) DebugInfo() string {
 	var debugInfo strings.Builder
 
 	debugInfo.WriteString(fmt.Sprintf("OP: %-13s ", c.debugInfo.inst))
+	debugInfo.WriteString(fmt.Sprintf("TK: %-5d ", c.ticks))
 	debugInfo.WriteString("PC:" + lib.FormatHex(c.pc, 4) + " ")
 	debugInfo.WriteString("SP:" + lib.FormatHex(c.sp, 2) + " ")
 	debugInfo.WriteString("I:" + lib.FormatHex(c.i, 4) + " ")
@@ -121,6 +153,20 @@ func (c *CPU) popStack() uint16 {
 	return v
 }
 
+func (c *CPU) updateCompatibilityMode(mode CompatibilityMode) {
+	if c.forcedCompatibilityMode && c.ticks > 0 {
+		return
+	}
+
+	c.compatibilityMode = mode
+	switch mode {
+	case CM_CHIP8, CM_NONE:
+		c.SetCurrentTPS(600)
+	case CM_SUPERCHIP, CM_XOCHIP:
+		c.SetCurrentTPS(700)
+	}
+}
+
 func (c *CPU) decodeInstruction() uint16 {
 	lib.Assert(c.pc < memory.PROGRAM_RAM_END, fmt.Errorf("illegal program counter position: 0x%03X", c.pc))
 
@@ -153,23 +199,34 @@ func (c *CPU) execute(inst uint16) {
 				implemented = false
 			}
 		case 0xC:
+			c.updateCompatibilityMode(CM_SUPERCHIP)
 			c.debugInfo.inst = "SCD " + lib.FormatHex(lo0, 1)
 			c.ui.Scroll(ui.SD_DOWN, int(lo0))
 		case 0xD:
+			c.compatibilityMode = CM_XOCHIP
 			c.debugInfo.inst = "SCU " + lib.FormatHex(lo0, 1)
 			c.ui.Scroll(ui.SD_UP, int(lo0))
 		case 0xF:
 			switch lo0 {
 			case 0xB:
+				c.updateCompatibilityMode(CM_SUPERCHIP)
 				c.debugInfo.inst = "SCR 4"
 				c.ui.Scroll(ui.SD_RIGHT, 4)
 			case 0xC:
+				c.updateCompatibilityMode(CM_SUPERCHIP)
 				c.debugInfo.inst = "SCL 4"
 				c.ui.Scroll(ui.SD_LEFT, 4)
+			case 0xD:
+				c.debugInfo.inst = "EXIT"
+
+				log.Println("exit called, pausing instead")
+				c.ui.TogglePauseChip8()
 			case 0xE:
+				c.updateCompatibilityMode(CM_SUPERCHIP)
 				c.debugInfo.inst = "LORES"
 				c.ui.ToggleHiRes(false)
 			case 0xF:
+				c.updateCompatibilityMode(CM_SUPERCHIP)
 				c.debugInfo.inst = "HIRES"
 				c.ui.ToggleHiRes(true)
 			default:
@@ -224,15 +281,24 @@ func (c *CPU) execute(inst uint16) {
 		case 0x1:
 			c.debugInfo.inst = "OR V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.writeReg(hi0, c.readReg(hi0)|c.readReg(lo1))
-			c.writeReg(0xF, 0)
+
+			if c.compatibilityMode == CM_CHIP8 {
+				c.writeReg(0xF, 0)
+			}
 		case 0x2:
 			c.debugInfo.inst = "AND V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.writeReg(hi0, c.readReg(hi0)&c.readReg(lo1))
-			c.writeReg(0xF, 0)
+
+			if c.compatibilityMode == CM_CHIP8 {
+				c.writeReg(0xF, 0)
+			}
 		case 0x3:
 			c.debugInfo.inst = "XOR V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.writeReg(hi0, c.readReg(hi0)^c.readReg(lo1))
-			c.writeReg(0xF, 0)
+
+			if c.compatibilityMode == CM_CHIP8 {
+				c.writeReg(0xF, 0)
+			}
 		case 0x4:
 			c.debugInfo.inst = "ADD V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			a, b := c.readReg(hi0), c.readReg(lo1)
@@ -259,7 +325,15 @@ func (c *CPU) execute(inst uint16) {
 			}
 		case 0x6:
 			c.debugInfo.inst = "SHR V" + lib.FormatHex(hi0, 1) + " {, V" + lib.FormatHex(lo1, 1) + "}"
-			v := c.readReg(lo1)
+
+			var v byte
+
+			switch c.compatibilityMode {
+			case CM_CHIP8:
+				v = c.readReg(lo1)
+			default:
+				v = c.readReg(hi0)
+			}
 
 			c.writeReg(hi0, v>>1)
 			c.writeReg(0xF, lib.Bit(v, 0))
@@ -275,7 +349,15 @@ func (c *CPU) execute(inst uint16) {
 			}
 		case 0xE:
 			c.debugInfo.inst = "SHL V" + lib.FormatHex(hi0, 1) + " {, V" + lib.FormatHex(lo1, 1) + "}"
-			v := c.readReg(lo1)
+
+			var v byte
+
+			switch c.compatibilityMode {
+			case CM_CHIP8:
+				v = c.readReg(lo1)
+			default:
+				v = c.readReg(hi0)
+			}
 
 			c.writeReg(hi0, v<<1)
 			c.writeReg(0xF, lib.Bit(v, 7))
@@ -294,8 +376,15 @@ func (c *CPU) execute(inst uint16) {
 		c.i = v
 	case 0xB:
 		v := inst & ADDR_MASK
-		c.debugInfo.inst = "JP V0, " + lib.FormatHex(v, 3)
-		c.pc = v + uint16(c.readReg(0))
+
+		switch c.compatibilityMode {
+		case CM_CHIP8:
+			c.debugInfo.inst = "JP V0, " + lib.FormatHex(v, 3)
+			c.pc = v + uint16(c.readReg(0))
+		default:
+			c.debugInfo.inst = "JP V" + lib.FormatHex(hi0, 1) + ", " + lib.FormatHex(v, 3)
+			c.pc = v + uint16(c.readReg(hi0))
+		}
 
 		return
 	case 0xC:
@@ -309,7 +398,15 @@ func (c *CPU) execute(inst uint16) {
 		x := c.readReg(hi0)
 		y := c.readReg(lo1)
 
-		sprite := make([]byte, lo0)
+		spriteLen := lo0
+
+		if lo0 == 0 {
+			c.updateCompatibilityMode(CM_SUPERCHIP)
+
+			spriteLen = 2 * 16 // 2 col 16 rows
+		}
+
+		sprite := make([]byte, spriteLen)
 
 		for i := range sprite {
 			sprite[i] = c.mem.Read(c.i + uint16(i))
@@ -379,15 +476,27 @@ func (c *CPU) execute(inst uint16) {
 		case 0x55:
 			c.debugInfo.inst = "LD " + lib.FormatHex(c.i, 2) + ", V" + lib.FormatHex(hi0, 1)
 
+			i := c.i
+
 			for x := range hi0 + 1 {
-				c.mem.Write(c.i, c.readReg(x))
-				c.i++
+				c.mem.Write(i, c.readReg(x))
+				i++
+			}
+
+			if c.compatibilityMode == CM_CHIP8 {
+				c.i = i
 			}
 		case 0x65:
 			c.debugInfo.inst = "LD V" + lib.FormatHex(hi0, 1) + ", " + lib.FormatHex(c.i, 2)
 
+			i := c.i
+
 			for x := range hi0 + 1 {
-				c.writeReg(x, c.mem.Read(c.i))
+				c.writeReg(x, c.mem.Read(i))
+				i++
+			}
+
+			if c.compatibilityMode == CM_CHIP8 {
 				c.i++
 			}
 		default:

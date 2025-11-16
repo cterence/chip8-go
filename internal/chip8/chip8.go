@@ -26,8 +26,10 @@ type Chip8 struct {
 	timer    *timer.Timer
 	debugger *debugger.Debugger
 
-	uiOptions []ui.Option
+	cpuOptions []cpu.Option
+	uiOptions  []ui.Option
 
+	currentCPUTPS float32
 	cpuTicks      int
 	paused        bool
 	lastFrame     time.Time
@@ -47,9 +49,9 @@ type Chip8 struct {
 }
 
 const (
-	CTPS = 500
-	TTPS = 60
-	FPS  = 60
+	CPU_TPS   float32 = 550
+	TIMER_TPS float32 = 60
+	UI_FPS    float32 = 60
 )
 
 type Option func(*Chip8)
@@ -66,7 +68,7 @@ func New(romBytes []byte, options ...Option) *Chip8 {
 	mem := memory.New()
 	ui := ui.New(c8.uiOptions...)
 	t := timer.New()
-	cpu := cpu.New(mem, ui, t)
+	cpu := cpu.New(mem, ui, t, c8.cpuOptions...)
 	debugger := debugger.New(cpu, mem)
 
 	c8.mem = mem
@@ -79,8 +81,15 @@ func New(romBytes []byte, options ...Option) *Chip8 {
 	c8.ui.IsChip8Paused = func() bool { return c8.paused }
 	c8.ui.TogglePauseChip8 = c8.togglePause
 	c8.ui.TickChip8 = c8.tick
+	c8.cpu.SetCurrentTPS = c8.SetCurrentCPUTPS
 
 	return c8
+}
+
+func WithCompatibilityMode(mode cpu.CompatibilityMode) Option {
+	return func(c *Chip8) {
+		c.cpuOptions = append(c.cpuOptions, cpu.WithCompatibilityMode(mode))
+	}
 }
 
 func WithDebug(debug bool) Option {
@@ -138,16 +147,20 @@ func WithTestFlag(testFlag byte) Option {
 	}
 }
 
+func (c8 *Chip8) SetCurrentCPUTPS(tps float32) {
+	c8.currentCPUTPS = tps
+}
+
 func (c8 *Chip8) GetCPUPeriod() time.Duration {
-	return time.Duration(float32(time.Second) / (CTPS * c8.speed))
+	return time.Second / time.Duration(c8.currentCPUTPS*c8.speed)
 }
 
 func (c8 *Chip8) GetTimerPeriod() time.Duration {
-	return time.Duration(float32(time.Second) / (TTPS * c8.speed))
+	return time.Second / time.Duration(TIMER_TPS*c8.speed)
 }
 
 func (c8 *Chip8) GetUIPeriod() time.Duration {
-	return time.Duration(float32(time.Second) / FPS)
+	return time.Second / time.Duration(UI_FPS)
 }
 
 func (c8 *Chip8) Run(ctx context.Context) error {
@@ -158,9 +171,6 @@ func (c8 *Chip8) Run(ctx context.Context) error {
 
 	if !c8.headless {
 		defer binsdl.Load().Unload()
-		// if err := sdl.LoadLibrary(sdl.Path()); err != nil {
-		// 	return fmt.Errorf("failed to load sdl library: %w", err)
-		// }
 		defer sdl.Quit()
 		defer c8.ui.Destroy()
 

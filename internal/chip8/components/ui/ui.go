@@ -183,17 +183,31 @@ func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
 	collision := false
 	startYDraw := (y * byte(ui.res)) % HEIGHT
 
-	for row := range sprite {
-		yDraw := byte((int(y)+row)*ui.res) % HEIGHT
+	spriteWidth := byte(8)
+	spriteHeight := byte(len(sprite))
+
+	if len(sprite) == 32 {
+		spriteWidth = 16
+		spriteHeight = 16
+	}
+
+	for row := range spriteHeight {
+		yDraw := (y + row) * byte(ui.res) % HEIGHT
 		prevXDraw := (x * byte(ui.res)) % WIDTH
 
 		if yDraw < startYDraw {
 			continue
 		}
 
-		for offset := range lib.BYTE_SIZE {
+		spriteRow := uint16(sprite[row])
+
+		if spriteWidth == 16 {
+			spriteRow = (uint16(sprite[row*2]) << uint16(lib.BYTE_SIZE)) | uint16(sprite[row*2+1])
+		}
+
+		for offset := range spriteWidth {
 			xDraw := byte((int(x)+int(offset))*ui.res) % WIDTH
-			spritePixel := lib.Bit(sprite[row], 7-offset)
+			spritePixel := lib.Bit(spriteRow, uint16(spriteWidth-1-offset))
 			oldPixel := ui.frameBuffer[xDraw][yDraw]
 			newPixel := spritePixel ^ oldPixel
 

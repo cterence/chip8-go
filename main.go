@@ -9,20 +9,22 @@ import (
 
 	"github.com/Zyko0/go-sdl3/sdl"
 	"github.com/cterence/chip8-go/internal/chip8"
+	"github.com/cterence/chip8-go/internal/chip8/components/cpu"
 	"github.com/urfave/cli/v3"
 )
 
 func main() {
 	var (
-		debug      bool
-		rom        string
-		pauseAfter int
-		exitAfter  int
-		scale      int
-		headless   bool
-		screenshot bool
-		testFlag   byte
-		speed      float32
+		compatibilityMode cpu.CompatibilityMode
+		debug             bool
+		rom               string
+		pauseAfter        int
+		exitAfter         int
+		scale             int
+		headless          bool
+		screenshot        bool
+		testFlag          byte
+		speed             float32
 	)
 
 	cmd := &cli.Command{
@@ -94,6 +96,25 @@ func main() {
 				Usage:       "populate 0x1FF address before run (used by timendus tests)",
 				Destination: &testFlag,
 			},
+			&cli.StringFlag{
+				Name:    "compatibility-mode",
+				Aliases: []string{"m"},
+				Usage:   "force compatibility mode (chip8, super, xo)",
+				Action: func(_ context.Context, _ *cli.Command, mode string) error {
+					switch mode {
+					case "chip8":
+						compatibilityMode = cpu.CM_CHIP8
+					case "super":
+						compatibilityMode = cpu.CM_SUPERCHIP
+					case "xo":
+						compatibilityMode = cpu.CM_XOCHIP
+					default:
+						return fmt.Errorf("unknown compatibility mode: %s", mode)
+					}
+
+					return nil
+				},
+			},
 		},
 		Arguments: []cli.Argument{
 			&cli.StringArg{
@@ -114,6 +135,7 @@ func main() {
 
 			c8 := chip8.New(
 				romBytes,
+				chip8.WithCompatibilityMode(compatibilityMode),
 				chip8.WithDebug(debug),
 				chip8.WithPauseAfter(pauseAfter),
 				chip8.WithExitAfter(exitAfter),

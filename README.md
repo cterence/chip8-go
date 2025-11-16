@@ -25,6 +25,6 @@ Automated screenshots from test runs done with [GitHub actions](./.github/workfl
 
 ## Improvement ideas
 
+- [x] Embed SDL3
 - [ ] Implement SUPER-CHIP & XO-CHIP
 - [ ] Load rom with drag-n-drop if not provided
-- [ ] Embed SDL3
