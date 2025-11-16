@@ -235,7 +235,10 @@ func (c8 *Chip8) init() error {
 
 	c8.mem.Init()
 	c8.cpu.Init()
-	c8.timer.Init()
+
+	if err := c8.timer.Init(); err != nil {
+		return fmt.Errorf("failed to init timer: %w", err)
+	}
 
 	if !c8.headless {
 		if err := c8.ui.Init(); err != nil {
