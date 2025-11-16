@@ -6,7 +6,7 @@ require (
 	github.com/Zyko0/go-sdl3 v0.0.0-20250919234044-0fbb60f62dd7
 	github.com/gen2brain/beeep v0.11.1
 	github.com/stretchr/testify v1.11.1
-	github.com/urfave/cli/v3 v3.6.0
+	github.com/urfave/cli/v3 v3.6.1
 	golang.org/x/exp v0.0.0-20251113190631-e25ba8c21ef6
 )
 
