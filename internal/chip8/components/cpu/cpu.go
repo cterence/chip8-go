@@ -161,7 +161,7 @@ func (c *CPU) updateCompatibilityMode(mode CompatibilityMode) {
 	c.compatibilityMode = mode
 	switch mode {
 	case CM_CHIP8, CM_NONE:
-		c.SetCurrentTPS(600)
+		c.SetCurrentTPS(550)
 	case CM_SUPERCHIP, CM_XOCHIP:
 		c.SetCurrentTPS(700)
 	}
