@@ -60,19 +60,24 @@ jobs:
 
           mkdir -p $RESULTS_DIR
 
-          ./chip8-go --screenshot -e 50 $TEST_DIR/1-chip8-logo.ch8
-          ./chip8-go --screenshot -e 50 $TEST_DIR/2-ibm-logo.ch8
-          ./chip8-go --screenshot -e 350 $TEST_DIR/3-corax+.ch8
-          ./chip8-go --screenshot -e 1000 $TEST_DIR/4-flags.ch8
-          ./chip8-go --screenshot -e 3000 -t 1 $TEST_DIR/5-quirks.ch8
+          ./chip8-go $TEST_DIR/1-chip8-logo.ch8 --screenshot -e 50
+          ./chip8-go $TEST_DIR/2-ibm-logo.ch8 --screenshot -e 50
+          ./chip8-go $TEST_DIR/3-corax+.ch8 --screenshot -e 350
+          ./chip8-go $TEST_DIR/4-flags.ch8 --screenshot -e 1000
           mvimg ""
-          ./chip8-go --screenshot -e 300 -t 1 $TEST_DIR/8-scrolling.ch8
+          ./chip8-go $TEST_DIR/5-quirks.ch8 --screenshot -e 3000 -t 1 -m chip8
+          mvimg "-chip8"
+          ./chip8-go $TEST_DIR/5-quirks.ch8 --screenshot -e 3000 -t 2 -m super
+          mvimg "-super"
+          ./chip8-go $TEST_DIR/5-quirks.ch8 --screenshot -e 3000 -t 3 -m xo
+          mvimg "-xo"
+          ./chip8-go $TEST_DIR/8-scrolling.ch8 --screenshot -e 300 -t 1
           mvimg "-super-lores"
-          ./chip8-go --screenshot -e 300 -t 3 $TEST_DIR/8-scrolling.ch8
+          ./chip8-go $TEST_DIR/8-scrolling.ch8 --screenshot -e 300 -t 3
           mvimg "-super-hires"
-          ./chip8-go --screenshot -e 350 -t 4 $TEST_DIR/8-scrolling.ch8
+          ./chip8-go $TEST_DIR/8-scrolling.ch8 --screenshot -e 350 -t 4
           mvimg "-xo-lores"
-          ./chip8-go --screenshot -e 350 -t 5 $TEST_DIR/8-scrolling.ch8
+          ./chip8-go $TEST_DIR/8-scrolling.ch8 --screenshot -e 350 -t 5
           mvimg "-xo-hires"
 
 
