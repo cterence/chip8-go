@@ -9,6 +9,8 @@ import (
 )
 
 type Timer struct {
+	audioDisabled bool
+
 	delay uint8
 	sound uint8
 
@@ -17,15 +19,31 @@ type Timer struct {
 	beep        []byte
 }
 
-func New() *Timer {
+type Option func(*Timer)
+
+func New(options ...Option) *Timer {
 	t := &Timer{}
 
+	for _, o := range options {
+		o(t)
+	}
+
 	return t
+}
+
+func WithAudioDisabled(audioDisabled bool) Option {
+	return func(t *Timer) {
+		t.audioDisabled = audioDisabled
+	}
 }
 
 func (t *Timer) Init() error {
 	t.delay = 0
 	t.sound = 0
+
+	if t.audioDisabled {
+		return nil
+	}
 
 	err := sdl.Init(sdl.INIT_AUDIO)
 	if err != nil {
@@ -43,9 +61,11 @@ func (t *Timer) Init() error {
 		return fmt.Errorf("failed to get default playback audio device: %w", err)
 	}
 
-	t.audioStream, err = sdl.CreateAudioStream(spec, spec)
-	if err != nil {
-		return fmt.Errorf("failed to create audio stream: %w", err)
+	if t.audioStream == nil {
+		t.audioStream, err = sdl.CreateAudioStream(spec, spec)
+		if err != nil {
+			return fmt.Errorf("failed to create audio stream: %w", err)
+		}
 	}
 
 	if err := t.device.BindAudioStream(t.audioStream); err != nil {
@@ -75,7 +95,7 @@ func (t *Timer) Tick() {
 	}
 
 	if t.sound > 0 {
-		if t.sound > 1 {
+		if t.sound > 1 && !t.audioDisabled {
 			available, err := t.audioStream.Available()
 			if err != nil {
 				log.Printf("failed to get available audio stream: %v", err)

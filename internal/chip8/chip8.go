@@ -26,8 +26,9 @@ type Chip8 struct {
 	timer    *timer.Timer
 	debugger *debugger.Debugger
 
-	cpuOptions []cpu.Option
-	uiOptions  []ui.Option
+	cpuOptions   []cpu.Option
+	uiOptions    []ui.Option
+	timerOptions []timer.Option
 
 	currentCPUTPS float32
 	cpuTicks      int
@@ -67,7 +68,7 @@ func New(romBytes []byte, options ...Option) *Chip8 {
 
 	mem := memory.New()
 	ui := ui.New(c8.uiOptions...)
-	t := timer.New()
+	t := timer.New(c8.timerOptions...)
 	cpu := cpu.New(mem, ui, t, c8.cpuOptions...)
 	debugger := debugger.New(cpu, mem)
 
@@ -144,6 +145,12 @@ func WithHeadless(headless bool) Option {
 func WithTestFlag(testFlag byte) Option {
 	return func(c *Chip8) {
 		c.testFlag = testFlag
+	}
+}
+
+func WithAudioDisabled(audioDisabled bool) Option {
+	return func(c *Chip8) {
+		c.timerOptions = append(c.timerOptions, timer.WithAudioDisabled(audioDisabled))
 	}
 }
 

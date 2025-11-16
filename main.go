@@ -25,6 +25,7 @@ func main() {
 		screenshot        bool
 		testFlag          byte
 		speed             float32
+		disableAudio      bool
 	)
 
 	cmd := &cli.Command{
@@ -76,6 +77,11 @@ func main() {
 				Aliases:     []string{"d"},
 				Usage:       "print debug logs",
 				Destination: &debug,
+			},
+			&cli.BoolFlag{
+				Name:        "disable-audio",
+				Usage:       "disable audio beeps",
+				Destination: &disableAudio,
 			},
 			&cli.Float32Flag{
 				Name:        "speed",
@@ -144,6 +150,7 @@ func main() {
 				chip8.WithSpeed(speed),
 				chip8.WithHeadless(headless),
 				chip8.WithTestFlag(testFlag),
+				chip8.WithAudioDisabled(disableAudio),
 			)
 
 			return c8.Run(ctx)
