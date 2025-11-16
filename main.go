@@ -29,7 +29,7 @@ func main() {
 
 	cmd := &cli.Command{
 		Name:  "chip8-go",
-		Usage: "chip8 emulator",
+		Usage: "chip8 interpreter",
 		MutuallyExclusiveFlags: []cli.MutuallyExclusiveFlags{
 			{
 				Flags: [][]cli.Flag{
@@ -80,7 +80,7 @@ func main() {
 			&cli.Float32Flag{
 				Name:        "speed",
 				Aliases:     []string{"s"},
-				Usage:       "emulator speed",
+				Usage:       "interpreter speed",
 				Value:       1.0,
 				Destination: &speed,
 			},

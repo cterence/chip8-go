@@ -464,9 +464,13 @@ func (c *CPU) execute(inst uint16) {
 			c.debugInfo.inst = "ADD I, V" + lib.FormatHex(hi0, 1)
 			c.i = c.i + uint16(c.readReg(hi0))
 		case 0x29:
-			c.debugInfo.inst = "LF F, V" + lib.FormatHex(hi0, 1)
+			c.debugInfo.inst = "LD F, V" + lib.FormatHex(hi0, 1)
 			digit := c.readReg(hi0)
 			c.i = uint16(digit * 5)
+		case 0x30:
+			c.debugInfo.inst = "LD HF, V" + lib.FormatHex(hi0, 1)
+			digit := c.readReg(hi0)
+			c.i = uint16(digit*10 + 80)
 		case 0x33:
 			c.debugInfo.inst = "LD B, V" + lib.FormatHex(hi0, 1)
 			v := fmt.Sprintf("%03d", c.readReg(hi0))
