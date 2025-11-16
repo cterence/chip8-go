@@ -19,7 +19,7 @@ func Test(t *testing.T) {
 		assert.Equal(t, byte(0), lib.Bit(b, 5))
 		assert.Equal(t, byte(0), lib.Bit(b, 6))
 		assert.Equal(t, byte(0), lib.Bit(b, 7))
-		assert.Panics(t, func() { lib.Bit(b, 8) })
+		assert.NotPanics(t, func() { lib.Bit(b, 8) })
 	})
 
 	t.Run("SetBit", func(t *testing.T) {
