@@ -9,13 +9,13 @@ import (
 
 	"github.com/Zyko0/go-sdl3/sdl"
 	"github.com/cterence/chip8-go/internal/chip8"
-	"github.com/cterence/chip8-go/internal/chip8/components/cpu"
+	"github.com/cterence/chip8-go/internal/lib"
 	"github.com/urfave/cli/v3"
 )
 
 func main() {
 	var (
-		compatibilityMode cpu.CompatibilityMode
+		compatibilityMode lib.CompatibilityMode
 		debug             bool
 		rom               string
 		pauseAfter        int
@@ -109,11 +109,11 @@ func main() {
 				Action: func(_ context.Context, _ *cli.Command, mode string) error {
 					switch mode {
 					case "chip8":
-						compatibilityMode = cpu.CM_CHIP8
+						compatibilityMode = lib.CM_CHIP8
 					case "super":
-						compatibilityMode = cpu.CM_SUPERCHIP
+						compatibilityMode = lib.CM_SUPERCHIP
 					case "xo":
-						compatibilityMode = cpu.CM_XOCHIP
+						compatibilityMode = lib.CM_XOCHIP
 					default:
 						return fmt.Errorf("unknown compatibility mode: %s", mode)
 					}

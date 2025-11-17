@@ -23,7 +23,7 @@ type register struct {
 type CPU struct {
 	pressedKey              byte
 	forcedCompatibilityMode bool
-	compatibilityMode       CompatibilityMode
+	compatibilityMode       lib.CompatibilityMode
 	ticks                   int
 
 	mem   *memory.Memory
@@ -60,15 +60,6 @@ const (
 	TARGET_TICK_PERIOD        = time.Second / TPS
 )
 
-type CompatibilityMode uint8
-
-const (
-	CM_NONE CompatibilityMode = iota
-	CM_CHIP8
-	CM_SUPERCHIP
-	CM_XOCHIP
-)
-
 func New(mem *memory.Memory, ui *ui.UI, t *timer.Timer, options ...Option) *CPU {
 	c := &CPU{
 		mem:   mem,
@@ -83,10 +74,10 @@ func New(mem *memory.Memory, ui *ui.UI, t *timer.Timer, options ...Option) *CPU 
 	return c
 }
 
-func WithCompatibilityMode(mode CompatibilityMode) Option {
+func WithCompatibilityMode(mode lib.CompatibilityMode) Option {
 	return func(c *CPU) {
 		c.compatibilityMode = mode
-		c.forcedCompatibilityMode = mode != CM_NONE
+		c.forcedCompatibilityMode = mode != lib.CM_NONE
 	}
 }
 
@@ -160,16 +151,16 @@ func (c *CPU) popStack() uint16 {
 	return v
 }
 
-func (c *CPU) updateCompatibilityMode(mode CompatibilityMode) {
+func (c *CPU) updateCompatibilityMode(mode lib.CompatibilityMode) {
 	if c.forcedCompatibilityMode && c.ticks > 0 {
 		return
 	}
 
 	c.compatibilityMode = mode
 	switch mode {
-	case CM_CHIP8, CM_NONE:
+	case lib.CM_CHIP8, lib.CM_NONE:
 		c.SetCurrentTPS(500)
-	case CM_SUPERCHIP, CM_XOCHIP:
+	case lib.CM_SUPERCHIP, lib.CM_XOCHIP:
 		c.SetCurrentTPS(700)
 	}
 }
@@ -208,21 +199,21 @@ func (c *CPU) execute(inst uint16) {
 					implemented = false
 				}
 			case 0xC:
-				c.updateCompatibilityMode(CM_SUPERCHIP)
+				c.updateCompatibilityMode(lib.CM_SUPERCHIP)
 				c.debugInfo.inst = "SCD " + lib.FormatHex(lo0, 1)
 				c.ui.Scroll(ui.SD_DOWN, int(lo0))
 			case 0xD:
-				c.compatibilityMode = CM_XOCHIP
+				c.compatibilityMode = lib.CM_XOCHIP
 				c.debugInfo.inst = "SCU " + lib.FormatHex(lo0, 1)
 				c.ui.Scroll(ui.SD_UP, int(lo0))
 			case 0xF:
 				switch lo0 {
 				case 0xB:
-					c.updateCompatibilityMode(CM_SUPERCHIP)
+					c.updateCompatibilityMode(lib.CM_SUPERCHIP)
 					c.debugInfo.inst = "SCR 4"
 					c.ui.Scroll(ui.SD_RIGHT, 4)
 				case 0xC:
-					c.updateCompatibilityMode(CM_SUPERCHIP)
+					c.updateCompatibilityMode(lib.CM_SUPERCHIP)
 					c.debugInfo.inst = "SCL 4"
 					c.ui.Scroll(ui.SD_LEFT, 4)
 				case 0xD:
@@ -231,11 +222,11 @@ func (c *CPU) execute(inst uint16) {
 					log.Println("exit called, pausing instead")
 					c.ui.TogglePauseChip8()
 				case 0xE:
-					c.updateCompatibilityMode(CM_SUPERCHIP)
+					c.updateCompatibilityMode(lib.CM_SUPERCHIP)
 					c.debugInfo.inst = "LORES"
 					c.ui.ToggleHiRes(false)
 				case 0xF:
-					c.updateCompatibilityMode(CM_SUPERCHIP)
+					c.updateCompatibilityMode(lib.CM_SUPERCHIP)
 					c.debugInfo.inst = "HIRES"
 					c.ui.ToggleHiRes(true)
 				default:
@@ -283,7 +274,7 @@ func (c *CPU) execute(inst uint16) {
 		switch lo0 {
 		case 0x2:
 			c.debugInfo.inst = "SFM V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
-			c.updateCompatibilityMode(CM_XOCHIP)
+			c.updateCompatibilityMode(lib.CM_XOCHIP)
 
 			regCount := lo1 - hi0
 
@@ -292,7 +283,7 @@ func (c *CPU) execute(inst uint16) {
 			}
 		case 0x3:
 			c.debugInfo.inst = "LFM V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
-			c.updateCompatibilityMode(CM_XOCHIP)
+			c.updateCompatibilityMode(lib.CM_XOCHIP)
 
 			regCount := lo1 - hi0
 
@@ -324,21 +315,21 @@ func (c *CPU) execute(inst uint16) {
 			c.debugInfo.inst = "OR V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.writeReg(hi0, c.readReg(hi0)|c.readReg(lo1))
 
-			if c.compatibilityMode == CM_CHIP8 {
+			if c.compatibilityMode == lib.CM_CHIP8 {
 				c.writeReg(0xF, 0)
 			}
 		case 0x2:
 			c.debugInfo.inst = "AND V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.writeReg(hi0, c.readReg(hi0)&c.readReg(lo1))
 
-			if c.compatibilityMode == CM_CHIP8 {
+			if c.compatibilityMode == lib.CM_CHIP8 {
 				c.writeReg(0xF, 0)
 			}
 		case 0x3:
 			c.debugInfo.inst = "XOR V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.writeReg(hi0, c.readReg(hi0)^c.readReg(lo1))
 
-			if c.compatibilityMode == CM_CHIP8 {
+			if c.compatibilityMode == lib.CM_CHIP8 {
 				c.writeReg(0xF, 0)
 			}
 		case 0x4:
@@ -371,7 +362,7 @@ func (c *CPU) execute(inst uint16) {
 			var v byte
 
 			switch c.compatibilityMode {
-			case CM_CHIP8:
+			case lib.CM_CHIP8, lib.CM_XOCHIP:
 				v = c.readReg(lo1)
 			default:
 				v = c.readReg(hi0)
@@ -395,7 +386,7 @@ func (c *CPU) execute(inst uint16) {
 			var v byte
 
 			switch c.compatibilityMode {
-			case CM_CHIP8:
+			case lib.CM_CHIP8, lib.CM_XOCHIP:
 				v = c.readReg(lo1)
 			default:
 				v = c.readReg(hi0)
@@ -423,7 +414,7 @@ func (c *CPU) execute(inst uint16) {
 		v := inst & ADDR_MASK
 
 		switch c.compatibilityMode {
-		case CM_CHIP8:
+		case lib.CM_CHIP8, lib.CM_XOCHIP:
 			c.debugInfo.inst = "JP V0, " + lib.FormatHex(v, 3)
 			c.pc = v + uint16(c.readReg(0))
 		default:
@@ -446,7 +437,7 @@ func (c *CPU) execute(inst uint16) {
 		spriteLen := lo0
 
 		if lo0 == 0 {
-			c.updateCompatibilityMode(CM_SUPERCHIP)
+			c.updateCompatibilityMode(lib.CM_SUPERCHIP)
 
 			spriteLen = 2 * 16 // 2 col 16 rows
 		}
@@ -545,7 +536,7 @@ func (c *CPU) execute(inst uint16) {
 				i++
 			}
 
-			if c.compatibilityMode == CM_CHIP8 {
+			if c.compatibilityMode == lib.CM_CHIP8 || c.compatibilityMode == lib.CM_XOCHIP {
 				c.i = i
 			}
 		case 0x65:
@@ -558,12 +549,12 @@ func (c *CPU) execute(inst uint16) {
 				i++
 			}
 
-			if c.compatibilityMode == CM_CHIP8 {
+			if c.compatibilityMode == lib.CM_CHIP8 || c.compatibilityMode == lib.CM_XOCHIP {
 				c.i++
 			}
 		case 0x75:
 			c.debugInfo.inst = "SF V" + lib.FormatHex(hi0, 1)
-			c.updateCompatibilityMode(CM_SUPERCHIP)
+			c.updateCompatibilityMode(lib.CM_SUPERCHIP)
 
 			homeDir, err := os.UserHomeDir()
 			if err != nil {
@@ -598,7 +589,7 @@ func (c *CPU) execute(inst uint16) {
 			}
 		case 0x85:
 			c.debugInfo.inst = "LF V" + lib.FormatHex(hi0, 1)
-			c.updateCompatibilityMode(CM_SUPERCHIP)
+			c.updateCompatibilityMode(lib.CM_SUPERCHIP)
 
 			homeDir, err := os.UserHomeDir()
 			if err != nil {

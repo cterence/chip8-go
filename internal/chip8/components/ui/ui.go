@@ -14,8 +14,9 @@ import (
 )
 
 type UI struct {
-	scale       int
-	frameBuffer [WIDTH][HEIGHT]byte
+	compatibilityMode lib.CompatibilityMode
+	scale             int
+	frameBuffer       [WIDTH][HEIGHT]byte
 
 	window   *sdl.Window
 	renderer *sdl.Renderer
@@ -88,6 +89,12 @@ func New(options ...Option) *UI {
 func WithScale(scale int) Option {
 	return func(u *UI) {
 		u.scale = scale
+	}
+}
+
+func WithCompatibilityMode(mode lib.CompatibilityMode) Option {
+	return func(ui *UI) {
+		ui.compatibilityMode = mode
 	}
 }
 
@@ -195,7 +202,7 @@ func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
 		yDraw := (y + row) * byte(ui.res) % HEIGHT
 		prevXDraw := (x * byte(ui.res)) % WIDTH
 
-		if yDraw < startYDraw {
+		if yDraw < startYDraw && ui.compatibilityMode != lib.CM_XOCHIP {
 			continue
 		}
 
@@ -211,7 +218,7 @@ func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
 			oldPixel := ui.frameBuffer[xDraw][yDraw]
 			newPixel := spritePixel ^ oldPixel
 
-			if xDraw < prevXDraw {
+			if xDraw < prevXDraw && ui.compatibilityMode != lib.CM_XOCHIP {
 				continue
 			}
 

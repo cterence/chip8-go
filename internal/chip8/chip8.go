@@ -91,9 +91,10 @@ func New(romBytes []byte, options ...Option) *Chip8 {
 	return c8
 }
 
-func WithCompatibilityMode(mode cpu.CompatibilityMode) Option {
+func WithCompatibilityMode(mode lib.CompatibilityMode) Option {
 	return func(c *Chip8) {
 		c.cpuOptions = append(c.cpuOptions, cpu.WithCompatibilityMode(mode))
+		c.uiOptions = append(c.uiOptions, ui.WithCompatibilityMode(mode))
 	}
 }
 

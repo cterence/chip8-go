@@ -13,6 +13,15 @@ const (
 	BYTE_SIZE byte = 8
 )
 
+type CompatibilityMode uint8
+
+const (
+	CM_NONE CompatibilityMode = iota
+	CM_CHIP8
+	CM_SUPERCHIP
+	CM_XOCHIP
+)
+
 func Assert(condition bool, errorMsg error) {
 	if !condition {
 		panic("assertion failed: " + errorMsg.Error())
