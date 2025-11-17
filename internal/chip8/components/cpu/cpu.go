@@ -193,49 +193,54 @@ func (c *CPU) execute(inst uint16) {
 
 	switch hi1 {
 	case 0x0:
-		switch lo1 {
-		case 0xE:
-			switch lo0 {
-			case 0x0:
-				c.debugInfo.inst = "CLS"
-				c.ui.Reset()
+		switch hi0 {
+		case 0x0:
+			switch lo1 {
 			case 0xE:
-				c.debugInfo.inst = "RET"
-				c.pc = c.popStack()
-			default:
-				implemented = false
-			}
-		case 0xC:
-			c.updateCompatibilityMode(CM_SUPERCHIP)
-			c.debugInfo.inst = "SCD " + lib.FormatHex(lo0, 1)
-			c.ui.Scroll(ui.SD_DOWN, int(lo0))
-		case 0xD:
-			c.compatibilityMode = CM_XOCHIP
-			c.debugInfo.inst = "SCU " + lib.FormatHex(lo0, 1)
-			c.ui.Scroll(ui.SD_UP, int(lo0))
-		case 0xF:
-			switch lo0 {
-			case 0xB:
-				c.updateCompatibilityMode(CM_SUPERCHIP)
-				c.debugInfo.inst = "SCR 4"
-				c.ui.Scroll(ui.SD_RIGHT, 4)
+				switch lo0 {
+				case 0x0:
+					c.debugInfo.inst = "CLS"
+					c.ui.Reset()
+				case 0xE:
+					c.debugInfo.inst = "RET"
+					c.pc = c.popStack()
+				default:
+					implemented = false
+				}
 			case 0xC:
 				c.updateCompatibilityMode(CM_SUPERCHIP)
-				c.debugInfo.inst = "SCL 4"
-				c.ui.Scroll(ui.SD_LEFT, 4)
+				c.debugInfo.inst = "SCD " + lib.FormatHex(lo0, 1)
+				c.ui.Scroll(ui.SD_DOWN, int(lo0))
 			case 0xD:
-				c.debugInfo.inst = "EXIT"
-
-				log.Println("exit called, pausing instead")
-				c.ui.TogglePauseChip8()
-			case 0xE:
-				c.updateCompatibilityMode(CM_SUPERCHIP)
-				c.debugInfo.inst = "LORES"
-				c.ui.ToggleHiRes(false)
+				c.compatibilityMode = CM_XOCHIP
+				c.debugInfo.inst = "SCU " + lib.FormatHex(lo0, 1)
+				c.ui.Scroll(ui.SD_UP, int(lo0))
 			case 0xF:
-				c.updateCompatibilityMode(CM_SUPERCHIP)
-				c.debugInfo.inst = "HIRES"
-				c.ui.ToggleHiRes(true)
+				switch lo0 {
+				case 0xB:
+					c.updateCompatibilityMode(CM_SUPERCHIP)
+					c.debugInfo.inst = "SCR 4"
+					c.ui.Scroll(ui.SD_RIGHT, 4)
+				case 0xC:
+					c.updateCompatibilityMode(CM_SUPERCHIP)
+					c.debugInfo.inst = "SCL 4"
+					c.ui.Scroll(ui.SD_LEFT, 4)
+				case 0xD:
+					c.debugInfo.inst = "EXIT"
+
+					log.Println("exit called, pausing instead")
+					c.ui.TogglePauseChip8()
+				case 0xE:
+					c.updateCompatibilityMode(CM_SUPERCHIP)
+					c.debugInfo.inst = "LORES"
+					c.ui.ToggleHiRes(false)
+				case 0xF:
+					c.updateCompatibilityMode(CM_SUPERCHIP)
+					c.debugInfo.inst = "HIRES"
+					c.ui.ToggleHiRes(true)
+				default:
+					implemented = false
+				}
 			default:
 				implemented = false
 			}
@@ -554,8 +559,24 @@ func (c *CPU) execute(inst uint16) {
 				break
 			}
 
-			data, err := os.ReadFile(filepath.Join(homeDir, ".local/share/chip8-go/flags.json"))
+			flagDir := filepath.Join(homeDir, ".local/share/chip8-go")
+
+			err = os.MkdirAll(flagDir, 0755)
 			if err != nil {
+				log.Println("failed to save flags: %w", err)
+
+				break
+			}
+
+			data, err := os.ReadFile(filepath.Join(flagDir, "flags.json"))
+			if err != nil {
+				_, err = os.Create(filepath.Join(flagDir, "flags.json"))
+				if err != nil {
+					log.Println("failed to create flags file: %w", err)
+
+					break
+				}
+
 				log.Println("failed to load flags: %w", err)
 
 				break
@@ -563,14 +584,16 @@ func (c *CPU) execute(inst uint16) {
 
 			var storage regStorage
 
-			err = json.Unmarshal(data, &storage)
-			if err != nil {
-				log.Println("failed to load flags: %w", err)
+			if len(data) > 0 {
+				err = json.Unmarshal(data, &storage)
+				if err != nil {
+					log.Println("failed to load flags: %w", err)
 
-				break
+					break
+				}
+
+				copy(c.reg[:], storage.Registers[:])
 			}
-
-			copy(c.reg[:], storage.Registers[:])
 		default:
 			implemented = false
 		}
