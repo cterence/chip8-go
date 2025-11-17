@@ -266,18 +266,48 @@ func (c *CPU) execute(inst uint16) {
 
 		if c.readReg(hi0) == lo {
 			c.pc += 2
+			if c.decodeInstruction() == 0xF000 {
+				c.pc += 2
+			}
 		}
 	case 0x4:
 		c.debugInfo.inst = "SNE V" + lib.FormatHex(hi0, 1) + ", " + lib.FormatHex(lo, 2)
 
 		if c.readReg(hi0) != lo {
 			c.pc += 2
+			if c.decodeInstruction() == 0xF000 {
+				c.pc += 2
+			}
 		}
 	case 0x5:
-		c.debugInfo.inst = "SE V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
+		switch lo0 {
+		case 0x2:
+			c.debugInfo.inst = "SFM V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
+			c.updateCompatibilityMode(CM_XOCHIP)
 
-		if c.readReg(hi0) == c.readReg(lo1) {
-			c.pc += 2
+			regCount := lo1 - hi0
+
+			for i := range regCount + 1 {
+				c.mem.Write(c.i+uint16(i), c.readReg(i+hi0))
+			}
+		case 0x3:
+			c.debugInfo.inst = "LFM V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
+			c.updateCompatibilityMode(CM_XOCHIP)
+
+			regCount := lo1 - hi0
+
+			for i := range regCount + 1 {
+				c.writeReg(i+hi0, c.mem.Read(c.i+uint16(i)))
+			}
+		default:
+			c.debugInfo.inst = "SE V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
+
+			if c.readReg(hi0) == c.readReg(lo1) {
+				c.pc += 2
+				if c.decodeInstruction() == 0xF000 {
+					c.pc += 2
+				}
+			}
 		}
 	case 0x6:
 		c.debugInfo.inst = "LD V" + lib.FormatHex(hi0, 1) + ", " + lib.FormatHex(lo, 2)
@@ -381,6 +411,9 @@ func (c *CPU) execute(inst uint16) {
 
 		if c.readReg(hi0) != c.readReg(lo1) {
 			c.pc += 2
+			if c.decodeInstruction() == 0xF000 {
+				c.pc += 2
+			}
 		}
 	case 0xA:
 		v := inst & ADDR_MASK
@@ -436,18 +469,31 @@ func (c *CPU) execute(inst uint16) {
 
 			if c.ui.IsKeyPressed(c.readReg(hi0)) {
 				c.pc += 2
+				if c.decodeInstruction() == 0xF000 {
+					c.pc += 2
+				}
 			}
 		case 0xA1:
 			c.debugInfo.inst = "SKNP V" + lib.FormatHex(hi0, 1)
 
 			if !c.ui.IsKeyPressed(c.readReg(hi0)) {
 				c.pc += 2
+				if c.decodeInstruction() == 0xF000 {
+					c.pc += 2
+				}
 			}
 		default:
 			implemented = false
 		}
 	case 0xF:
 		switch lo {
+		case 0x00:
+			c.pc += 2
+			addr := c.decodeInstruction()
+
+			c.debugInfo.inst = "LD I, " + lib.FormatHex(addr, 4)
+
+			c.i = addr
 		case 0x07:
 			c.debugInfo.inst = "LD V" + lib.FormatHex(hi0, 1) + ", DT"
 			c.writeReg(hi0, c.timer.GetDelay())
@@ -517,6 +563,7 @@ func (c *CPU) execute(inst uint16) {
 			}
 		case 0x75:
 			c.debugInfo.inst = "SF V" + lib.FormatHex(hi0, 1)
+			c.updateCompatibilityMode(CM_SUPERCHIP)
 
 			homeDir, err := os.UserHomeDir()
 			if err != nil {
@@ -551,6 +598,7 @@ func (c *CPU) execute(inst uint16) {
 			}
 		case 0x85:
 			c.debugInfo.inst = "LF V" + lib.FormatHex(hi0, 1)
+			c.updateCompatibilityMode(CM_SUPERCHIP)
 
 			homeDir, err := os.UserHomeDir()
 			if err != nil {

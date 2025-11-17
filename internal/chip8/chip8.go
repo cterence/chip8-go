@@ -11,6 +11,7 @@ import (
 
 	"github.com/Zyko0/go-sdl3/bin/binsdl"
 	"github.com/Zyko0/go-sdl3/sdl"
+	"github.com/cterence/chip8-go/internal/chip8/components/apu"
 	"github.com/cterence/chip8-go/internal/chip8/components/cpu"
 	"github.com/cterence/chip8-go/internal/chip8/components/debugger"
 	"github.com/cterence/chip8-go/internal/chip8/components/memory"
@@ -25,10 +26,11 @@ type Chip8 struct {
 	ui       *ui.UI
 	timer    *timer.Timer
 	debugger *debugger.Debugger
+	apu      *apu.APU
 
-	cpuOptions   []cpu.Option
-	uiOptions    []ui.Option
-	timerOptions []timer.Option
+	cpuOptions []cpu.Option
+	uiOptions  []ui.Option
+	apuOptions []apu.Option
 
 	currentCPUTPS float32
 	cpuTicks      int
@@ -68,7 +70,8 @@ func New(romBytes []byte, options ...Option) *Chip8 {
 
 	mem := memory.New()
 	ui := ui.New(c8.uiOptions...)
-	t := timer.New(c8.timerOptions...)
+	apu := apu.New(c8.apuOptions...)
+	t := timer.New(apu)
 	cpu := cpu.New(mem, ui, t, c8.cpuOptions...)
 	debugger := debugger.New(cpu, mem)
 
@@ -77,6 +80,7 @@ func New(romBytes []byte, options ...Option) *Chip8 {
 	c8.ui = ui
 	c8.timer = t
 	c8.debugger = debugger
+	c8.apu = apu
 
 	c8.ui.ResetChip8 = c8.init
 	c8.ui.IsChip8Paused = func() bool { return c8.paused }
@@ -150,7 +154,7 @@ func WithTestFlag(testFlag byte) Option {
 
 func WithAudioDisabled(audioDisabled bool) Option {
 	return func(c *Chip8) {
-		c.timerOptions = append(c.timerOptions, timer.WithAudioDisabled(audioDisabled))
+		c.apuOptions = append(c.apuOptions, apu.WithAudioDisabled(audioDisabled))
 	}
 }
 
@@ -240,8 +244,9 @@ func (c8 *Chip8) init() error {
 
 	c8.mem.Init()
 	c8.cpu.Init()
+	c8.timer.Init()
 
-	if err := c8.timer.Init(); err != nil {
+	if err := c8.apu.Init(); err != nil {
 		return fmt.Errorf("failed to init timer: %w", err)
 	}
 
