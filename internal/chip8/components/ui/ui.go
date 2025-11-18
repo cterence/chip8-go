@@ -423,8 +423,8 @@ func (ui *UI) resetFramebuffer(frameBufferID byte) {
 func (ui *UI) scrollFrameBuffer(sd ScrollDirection, pixels int, frameBufferID byte) {
 	var tmpBuf [WIDTH][HEIGHT]byte
 
-	for x := range ui.frameBuffer {
-		for y := range ui.frameBuffer[x] {
+	for x := range WIDTH {
+		for y := range HEIGHT {
 			newX, newY := ui.scrolledCoords(x, y, sd, pixels)
 			if newX < 0 || newY < 0 || newX >= WIDTH || newY >= HEIGHT {
 				continue
