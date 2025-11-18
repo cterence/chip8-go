@@ -55,5 +55,7 @@ func (t *Timer) Tick() {
 		}
 
 		t.sound--
+	} else {
+		t.apu.ResetPhase()
 	}
 }

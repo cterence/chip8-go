@@ -22,7 +22,7 @@ type APU struct {
 }
 
 const (
-	TPS                 = 30
+	TPS                 = 60
 	PATTERN_BUFFER_BITS = 128
 )
 
@@ -43,6 +43,7 @@ func (a *APU) Init() error {
 		return nil
 	}
 
+	// Beep pattern
 	a.pattern = [16]byte{
 		0xF0, 0x0, 0x0, 0x0,
 		0xF0, 0x0, 0x0, 0x0,
@@ -51,6 +52,7 @@ func (a *APU) Init() error {
 	}
 	a.playbackRate = 4000
 	a.sampleRate = 44100
+	a.phase = 0
 
 	spec := &sdl.AudioSpec{
 		Freq:     a.sampleRate,
@@ -105,6 +107,10 @@ func (a *APU) FillPatternBuffer(bytes [16]byte) {
 func (a *APU) SetPlaybackRate(pitch byte) {
 	pow := (float64(pitch) - 64) / 4
 	a.playbackRate = 4000 * math.Pow(2, pow)
+}
+
+func (a *APU) ResetPhase() {
+	a.phase = 0
 }
 
 func (a *APU) playPatternBuffer() {

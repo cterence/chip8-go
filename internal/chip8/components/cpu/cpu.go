@@ -136,14 +136,14 @@ func (c *CPU) DebugInfo() string {
 }
 
 func (c *CPU) readReg(reg byte) byte {
-	lib.Assert(reg < REGISTER_COUNT, fmt.Errorf("illegal read to register V%x", reg))
+	lib.Assert(reg < REGISTER_COUNT, fmt.Errorf("illegal read to register V%s", lib.FormatHex(reg, 2)))
 	v := c.reg[reg].value
 
 	return v
 }
 
 func (c *CPU) writeReg(reg byte, v byte) {
-	lib.Assert(reg < REGISTER_COUNT, fmt.Errorf("illegal write to register V%x", reg))
+	lib.Assert(reg < REGISTER_COUNT, fmt.Errorf("illegal write to register V%s", lib.FormatHex(reg, 2)))
 
 	c.reg[reg].value = v
 }
@@ -290,19 +290,31 @@ func (c *CPU) execute(inst uint16) {
 			c.debugInfo.inst = "SFM V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.updateCompatibilityMode(lib.CM_XOCHIP)
 
-			regCount := lo1 - hi0
+			v1, v2 := hi0, lo1
 
-			for i := range regCount + 1 {
-				c.mem.Write(c.i+uint16(i), c.readReg(i+hi0))
+			if lo1 > v1 {
+				v1, v2 = lo1, hi0
+			}
+
+			regCount := v1 - v2
+
+			for i := range regCount {
+				c.mem.Write(c.i+uint16(i), c.readReg(i+v2))
 			}
 		case 0x3:
 			c.debugInfo.inst = "LFM V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.updateCompatibilityMode(lib.CM_XOCHIP)
 
-			regCount := lo1 - hi0
+			v1, v2 := hi0, lo1
 
-			for i := range regCount + 1 {
-				c.writeReg(i+hi0, c.mem.Read(c.i+uint16(i)))
+			if lo1 > v1 {
+				v1, v2 = lo1, hi0
+			}
+
+			regCount := v1 - v2
+
+			for i := range regCount {
+				c.writeReg(i+v2, c.mem.Read(c.i+uint16(i)))
 			}
 		default:
 			c.debugInfo.inst = "SE V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
