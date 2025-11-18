@@ -72,7 +72,7 @@ func New(romBytes []byte, options ...Option) *Chip8 {
 	ui := ui.New(c8.uiOptions...)
 	apu := apu.New(c8.apuOptions...)
 	t := timer.New(apu)
-	cpu := cpu.New(mem, ui, t, c8.cpuOptions...)
+	cpu := cpu.New(mem, ui, t, apu, c8.cpuOptions...)
 	debugger := debugger.New(cpu, mem)
 
 	c8.mem = mem
@@ -122,10 +122,16 @@ func WithExitAfter(tickLimit int) Option {
 	}
 }
 
-func WithScreenshot(screenshot bool, rom string) Option {
+func WithScreenshot(screenshot bool) Option {
 	return func(c *Chip8) {
 		c.screenshot = screenshot
-		c.romFileName = rom
+	}
+}
+
+func WithRomFileName(romFileName string) Option {
+	return func(c *Chip8) {
+		c.romFileName = romFileName
+		c.cpuOptions = append(c.cpuOptions, cpu.WithRomFileName(romFileName))
 	}
 }
 

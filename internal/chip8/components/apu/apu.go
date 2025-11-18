@@ -2,18 +2,29 @@ package apu
 
 import (
 	"fmt"
+	"log"
 	"math"
 
 	"github.com/Zyko0/go-sdl3/sdl"
+	"github.com/cterence/chip8-go/internal/lib"
 )
 
 type APU struct {
-	audioDisabled bool
+	CompatibilityMode lib.CompatibilityMode
+	audioDisabled     bool
 
-	device      sdl.AudioDeviceID
-	audioStream *sdl.AudioStream
-	beep        []byte
+	device       sdl.AudioDeviceID
+	audioStream  *sdl.AudioStream
+	pattern      [16]byte
+	sampleRate   int32
+	playbackRate float64
+	phase        float64
 }
+
+const (
+	TPS                 = 30
+	PATTERN_BUFFER_BITS = 128
+)
 
 type Option func(*APU)
 
@@ -32,15 +43,24 @@ func (a *APU) Init() error {
 		return nil
 	}
 
+	a.pattern = [16]byte{
+		0xF0, 0x0, 0x0, 0x0,
+		0xF0, 0x0, 0x0, 0x0,
+		0xF0, 0x0, 0x0, 0x0,
+		0xF0, 0x0, 0x0, 0x0,
+	}
+	a.playbackRate = 4000
+	a.sampleRate = 44100
+
+	spec := &sdl.AudioSpec{
+		Freq:     a.sampleRate,
+		Format:   sdl.AUDIO_U8,
+		Channels: 1,
+	}
+
 	err := sdl.Init(sdl.INIT_AUDIO)
 	if err != nil {
 		return fmt.Errorf("failed to init sdl audio: %w", err)
-	}
-
-	spec := &sdl.AudioSpec{
-		Freq:     44100,
-		Format:   sdl.AUDIO_U8,
-		Channels: 1,
 	}
 
 	a.device, err = sdl.AUDIO_DEVICE_DEFAULT_PLAYBACK.OpenAudioDevice(spec)
@@ -61,8 +81,6 @@ func (a *APU) Init() error {
 		}
 	}
 
-	a.beep = generateBeep(int(spec.Freq), 440, 0.1)
-
 	return nil
 }
 
@@ -72,52 +90,59 @@ func WithAudioDisabled(audioDisabled bool) Option {
 	}
 }
 
-func (a *APU) PlayBeep() error {
+func (a *APU) PlaySound() {
 	if a.audioDisabled {
-		return nil
+		return
 	}
 
-	available, err := a.audioStream.Available()
-	if err != nil {
-		return fmt.Errorf("failed to get available audio stream: %v", err)
-	}
-
-	if available < int32(len(a.beep)) {
-		if err := a.audioStream.PutData(a.beep); err != nil {
-			return fmt.Errorf("failed to put data to audio stream: %v", err)
-		}
-	}
-
-	return nil
+	a.playPatternBuffer()
 }
 
-func generateBeep(sampleRate int, freq float64, seconds float64) []byte {
-	period := 1.0 / freq                 // Period of one wave cycle in seconds
-	cycles := math.Round(seconds * freq) // Number of complete cycles
-	exactDuration := cycles * period     // Exact duration for complete cycles
+func (a *APU) FillPatternBuffer(bytes [16]byte) {
+	copy(a.pattern[:], bytes[:])
+}
 
-	samples := int(float64(sampleRate) * exactDuration)
-	buf := make([]byte, samples)
+func (a *APU) SetPlaybackRate(pitch byte) {
+	pow := (float64(pitch) - 64) / 4
+	a.playbackRate = 4000 * math.Pow(2, pow)
+}
 
-	center := 128.0 // Center point for unsigned 8-bit audio
-	volume := 60.0  // Amplitude
-
-	for i := 0; i < samples; i++ {
-		// Generate sine wave
-		sine := math.Sin(2 * math.Pi * freq * float64(i) / float64(sampleRate))
-
-		// Generate 8-bit unsigned sample (centered at 128)
-		sample := center + (volume * sine)
-
-		// Clamp to valid range [0, 255]
-		if sample < 0 {
-			sample = 0
-		} else if sample > 255 {
-			sample = 255
-		}
-
-		buf[i] = uint8(sample)
+func (a *APU) playPatternBuffer() {
+	available, err := a.audioStream.Available()
+	if err != nil {
+		log.Printf("failed to get available audio stream: %v", err)
 	}
 
-	return buf
+	sound := a.generateSound()
+
+	if available < int32(len(sound)) {
+		if err := a.audioStream.PutData(sound); err != nil {
+			log.Printf("failed to put data to audio stream: %v", err)
+		}
+	}
+}
+
+func (a *APU) generateSound() []byte {
+	numSamples := int(a.sampleRate / TPS)
+	sound := make([]byte, numSamples)
+	step := a.playbackRate / float64(a.sampleRate)
+
+	for i := range len(sound) {
+		idx := int(a.phase) % PATTERN_BUFFER_BITS
+		byteIdx := idx / lib.BYTE_SIZE
+		bitIdx := byte(7 - (idx % lib.BYTE_SIZE))
+		b := lib.Bit(a.pattern[byteIdx], bitIdx)
+
+		if b == 1 {
+			sound[i] = 192
+		} else {
+			sound[i] = 64
+		}
+
+		a.phase += step
+	}
+
+	a.phase = math.Mod(a.phase, float64(PATTERN_BUFFER_BITS))
+
+	return sound
 }

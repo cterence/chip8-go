@@ -1,13 +1,13 @@
 package timer
 
 import (
-	"log"
-
 	"github.com/cterence/chip8-go/internal/chip8/components/apu"
+	"github.com/cterence/chip8-go/internal/lib"
 )
 
 type Timer struct {
-	apu *apu.APU
+	apu               *apu.APU
+	CompatibilityMode lib.CompatibilityMode
 
 	delay uint8
 	sound uint8
@@ -50,10 +50,8 @@ func (t *Timer) Tick() {
 	}
 
 	if t.sound > 0 {
-		if t.sound > 1 {
-			if err := t.apu.PlayBeep(); err != nil {
-				log.Println("failed to play beep: %w", err)
-			}
+		if t.CompatibilityMode == lib.CM_XOCHIP || t.sound > 1 {
+			t.apu.PlaySound()
 		}
 
 		t.sound--

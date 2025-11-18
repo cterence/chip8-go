@@ -17,7 +17,7 @@ type UI struct {
 	compatibilityMode lib.CompatibilityMode
 	scale             int
 
-	selectedFrameBuffer selectedFrameBuffer
+	SelectedFrameBuffer SelectedFrameBuffer
 	frameBuffer         [2][WIDTH][HEIGHT]byte
 	colorPalette        [4]uint32
 
@@ -58,10 +58,10 @@ const (
 	SD_UP
 )
 
-type selectedFrameBuffer uint8
+type SelectedFrameBuffer uint8
 
 const (
-	SF_NONE selectedFrameBuffer = iota
+	SF_NONE SelectedFrameBuffer = iota
 	SF_0
 	SF_1
 	SF_BOTH
@@ -79,14 +79,17 @@ func New(options ...Option) *UI {
 		sdl.K_2: 0x2,
 		sdl.K_3: 0x3,
 		sdl.K_4: 0xC,
+
 		sdl.K_Q: 0x4,
 		sdl.K_W: 0x5,
 		sdl.K_E: 0x6,
 		sdl.K_R: 0xD,
+
 		sdl.K_A: 0x7,
 		sdl.K_S: 0x8,
 		sdl.K_D: 0x9,
 		sdl.K_F: 0xE,
+
 		sdl.K_Z: 0xA,
 		sdl.K_X: 0x0,
 		sdl.K_C: 0xB,
@@ -95,6 +98,7 @@ func New(options ...Option) *UI {
 
 	ui.keyState = make(map[byte]bool)
 	ui.colorPalette = [4]uint32{0xFF0C0F1C, 0xFF87B6FF, 0xFFFFA7C8, 0xFFD0A7FF}
+	// ui.colorPalette = [4]uint32{0xFF0C0F1C, 0xFF87B6FF, 0xFFFFA7C8, 0xFFFFA7C8}
 
 	return ui
 }
@@ -146,7 +150,7 @@ func (ui *UI) Init() error {
 	ui.scrollPixels = 0
 	ui.res = 2
 	ui.keyPressed = 0xFF
-	ui.selectedFrameBuffer = 0
+	ui.SelectedFrameBuffer = 0
 	ui.Reset()
 
 	return nil
@@ -205,8 +209,13 @@ func (ui *UI) ToggleHiRes(enable bool) {
 func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
 	collision := false
 
-	for _, i := range ui.getFrameBufferIDs() {
-		collision = collision || ui.drawSpriteOnFramebuffer(x, y, sprite, i)
+	fbIDs := ui.getFrameBufferIDs()
+
+	switch len(fbIDs) {
+	case 1:
+		collision = ui.drawSpriteOnFramebuffer(x, y, sprite, fbIDs[0])
+	case 2:
+		collision = ui.drawSpriteOnFramebuffer(x, y, sprite[:len(sprite)/2], fbIDs[0]) || ui.drawSpriteOnFramebuffer(x, y, sprite[len(sprite)/2:], fbIDs[1])
 	}
 
 	return collision
@@ -242,13 +251,13 @@ func (ui *UI) GetPressedKey() byte {
 func (ui *UI) SelectFrameBuffer(id byte) {
 	switch id {
 	case 0:
-		ui.selectedFrameBuffer = SF_NONE
+		ui.SelectedFrameBuffer = SF_NONE
 	case 1:
-		ui.selectedFrameBuffer = SF_0
+		ui.SelectedFrameBuffer = SF_0
 	case 2:
-		ui.selectedFrameBuffer = SF_1
+		ui.SelectedFrameBuffer = SF_1
 	case 3:
-		ui.selectedFrameBuffer = SF_BOTH
+		ui.SelectedFrameBuffer = SF_BOTH
 	default:
 		log.Fatalf("framebuffer id must be 0, 1, 2 or 3 actual %d", id)
 	}
@@ -344,7 +353,7 @@ func (ui *UI) scrolledCoords(x, y int, sd ScrollDirection, pixels int) (int, int
 }
 
 func (ui *UI) getFrameBufferIDs() []byte {
-	switch ui.selectedFrameBuffer {
+	switch ui.SelectedFrameBuffer {
 	case SF_NONE, SF_0:
 		return []byte{0}
 	case SF_1:
@@ -352,7 +361,7 @@ func (ui *UI) getFrameBufferIDs() []byte {
 	case SF_BOTH:
 		return []byte{0, 1}
 	default:
-		log.Fatalf("unknown framebuffer ID: %d", ui.selectedFrameBuffer)
+		log.Fatalf("unknown framebuffer ID: %d", ui.SelectedFrameBuffer)
 	}
 
 	return nil
@@ -374,7 +383,7 @@ func (ui *UI) drawSpriteOnFramebuffer(x, y byte, sprite []byte, frameBufferID by
 		yDraw := (y + row) * byte(ui.res) % HEIGHT
 		prevXDraw := (x * byte(ui.res)) % WIDTH
 
-		if yDraw < startYDraw && ui.compatibilityMode != lib.CM_XOCHIP {
+		if yDraw < startYDraw {
 			continue
 		}
 
@@ -390,7 +399,7 @@ func (ui *UI) drawSpriteOnFramebuffer(x, y byte, sprite []byte, frameBufferID by
 			oldPixel := ui.frameBuffer[frameBufferID][xDraw][yDraw]
 			newPixel := spritePixel ^ oldPixel
 
-			if xDraw < prevXDraw && ui.compatibilityMode != lib.CM_XOCHIP {
+			if xDraw < prevXDraw {
 				continue
 			}
 

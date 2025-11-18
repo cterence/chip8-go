@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	BYTE_SIZE byte = 8
+	BYTE_SIZE = 8
 )
 
 type CompatibilityMode uint8

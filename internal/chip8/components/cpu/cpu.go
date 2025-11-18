@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/cterence/chip8-go/internal/chip8/components/apu"
 	"github.com/cterence/chip8-go/internal/chip8/components/memory"
 	"github.com/cterence/chip8-go/internal/chip8/components/timer"
 	"github.com/cterence/chip8-go/internal/chip8/components/ui"
@@ -21,23 +23,23 @@ type register struct {
 }
 
 type CPU struct {
+	mem   *memory.Memory
+	ui    *ui.UI
+	timer *timer.Timer
+	apu   *apu.APU
+
+	reg   [REGISTER_COUNT]register
+	pc    uint16
+	i     uint16
+	stack [STACK_SIZE]uint16
+	sp    uint8
+
+	romFileName             string
 	pressedKey              byte
 	forcedCompatibilityMode bool
 	compatibilityMode       lib.CompatibilityMode
 	ticks                   int
-
-	mem   *memory.Memory
-	ui    *ui.UI
-	timer *timer.Timer
-
-	reg [REGISTER_COUNT]register
-	pc  uint16
-	i   uint16
-
-	stack [STACK_SIZE]uint16
-	sp    uint8
-
-	debugInfo debugInfo
+	debugInfo               debugInfo
 
 	SetCurrentTPS func(float32)
 }
@@ -60,11 +62,12 @@ const (
 	TARGET_TICK_PERIOD        = time.Second / TPS
 )
 
-func New(mem *memory.Memory, ui *ui.UI, t *timer.Timer, options ...Option) *CPU {
+func New(mem *memory.Memory, ui *ui.UI, t *timer.Timer, apu *apu.APU, options ...Option) *CPU {
 	c := &CPU{
 		mem:   mem,
 		ui:    ui,
 		timer: t,
+		apu:   apu,
 	}
 
 	for _, o := range options {
@@ -78,6 +81,12 @@ func WithCompatibilityMode(mode lib.CompatibilityMode) Option {
 	return func(c *CPU) {
 		c.compatibilityMode = mode
 		c.forcedCompatibilityMode = mode != lib.CM_NONE
+	}
+}
+
+func WithRomFileName(romFileName string) Option {
+	return func(c *CPU) {
+		c.romFileName = romFileName
 	}
 }
 
@@ -157,11 +166,16 @@ func (c *CPU) updateCompatibilityMode(mode lib.CompatibilityMode) {
 	}
 
 	c.compatibilityMode = mode
+	c.apu.CompatibilityMode = mode
+	c.timer.CompatibilityMode = mode
+
 	switch mode {
 	case lib.CM_CHIP8, lib.CM_NONE:
 		c.SetCurrentTPS(500)
-	case lib.CM_SUPERCHIP, lib.CM_XOCHIP:
+	case lib.CM_SUPERCHIP:
 		c.SetCurrentTPS(700)
+	case lib.CM_XOCHIP:
+		c.SetCurrentTPS(math.MaxFloat32) // Unlimited CPU ticks
 	}
 }
 
@@ -442,6 +456,10 @@ func (c *CPU) execute(inst uint16) {
 			spriteLen = 2 * 16 // 2 col 16 rows
 		}
 
+		if c.ui.SelectedFrameBuffer == ui.SF_BOTH {
+			spriteLen *= 2
+		}
+
 		sprite := make([]byte, spriteLen)
 
 		for i := range sprite {
@@ -486,7 +504,22 @@ func (c *CPU) execute(inst uint16) {
 
 			c.i = addr
 		case 0x01:
+			c.debugInfo.inst = "SFB " + lib.FormatHex(hi0, 1)
+
+			c.updateCompatibilityMode(lib.CM_XOCHIP)
 			c.ui.SelectFrameBuffer(hi0)
+		case 0x02:
+			c.debugInfo.inst = "LDP"
+
+			var bytes [16]byte
+
+			c.updateCompatibilityMode(lib.CM_XOCHIP)
+
+			for i := range len(bytes) {
+				bytes[i] = c.mem.Read(c.i + uint16(i))
+			}
+
+			c.apu.FillPatternBuffer(bytes)
 		case 0x07:
 			c.debugInfo.inst = "LD V" + lib.FormatHex(hi0, 1) + ", DT"
 			c.writeReg(hi0, c.timer.GetDelay())
@@ -528,6 +561,11 @@ func (c *CPU) execute(inst uint16) {
 			c.mem.Write(c.i, v[0]-'0')
 			c.mem.Write(c.i+1, v[1]-'0')
 			c.mem.Write(c.i+2, v[2]-'0')
+		case 0x3A:
+			c.debugInfo.inst = "SP, V" + lib.FormatHex(hi0, 1)
+
+			c.updateCompatibilityMode(lib.CM_XOCHIP)
+			c.apu.SetPlaybackRate(c.readReg(hi0))
 		case 0x55:
 			c.debugInfo.inst = "LD " + lib.FormatHex(c.i, 2) + ", V" + lib.FormatHex(hi0, 1)
 
@@ -583,7 +621,10 @@ func (c *CPU) execute(inst uint16) {
 				break
 			}
 
-			err = os.WriteFile(filepath.Join(flagDir, "flags.json"), data, 0644)
+			romFileBaseName, _ := strings.CutSuffix(filepath.Base(c.romFileName), ".ch8")
+			fileName := romFileBaseName + "-flags.json"
+
+			err = os.WriteFile(filepath.Join(flagDir, fileName), data, 0644)
 			if err != nil {
 				log.Println("failed to save flags: %w", err)
 
@@ -609,9 +650,12 @@ func (c *CPU) execute(inst uint16) {
 				break
 			}
 
-			data, err := os.ReadFile(filepath.Join(flagDir, "flags.json"))
+			romFileBaseName, _ := strings.CutSuffix(filepath.Base(c.romFileName), ".ch8")
+			fileName := romFileBaseName + "-flags.json"
+
+			data, err := os.ReadFile(filepath.Join(flagDir, fileName))
 			if err != nil {
-				_, err = os.Create(filepath.Join(flagDir, "flags.json"))
+				_, err = os.Create(filepath.Join(flagDir, fileName))
 				if err != nil {
 					log.Println("failed to create flags file: %w", err)
 
