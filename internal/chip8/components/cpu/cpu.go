@@ -485,6 +485,8 @@ func (c *CPU) execute(inst uint16) {
 			c.debugInfo.inst = "LD I, " + lib.FormatHex(addr, 4)
 
 			c.i = addr
+		case 0x01:
+			c.ui.SelectFrameBuffer(hi0)
 		case 0x07:
 			c.debugInfo.inst = "LD V" + lib.FormatHex(hi0, 1) + ", DT"
 			c.writeReg(hi0, c.timer.GetDelay())

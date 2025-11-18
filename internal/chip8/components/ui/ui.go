@@ -16,7 +16,10 @@ import (
 type UI struct {
 	compatibilityMode lib.CompatibilityMode
 	scale             int
-	frameBuffer       [WIDTH][HEIGHT]byte
+
+	selectedFrameBuffer selectedFrameBuffer
+	frameBuffer         [2][WIDTH][HEIGHT]byte
+	colorPalette        [4]uint32
 
 	window   *sdl.Window
 	renderer *sdl.Renderer
@@ -55,6 +58,15 @@ const (
 	SD_UP
 )
 
+type selectedFrameBuffer uint8
+
+const (
+	SF_NONE selectedFrameBuffer = iota
+	SF_0
+	SF_1
+	SF_BOTH
+)
+
 func New(options ...Option) *UI {
 	ui := &UI{}
 
@@ -82,6 +94,7 @@ func New(options ...Option) *UI {
 	}
 
 	ui.keyState = make(map[byte]bool)
+	ui.colorPalette = [4]uint32{0xFF0C0F1C, 0xFF87B6FF, 0xFFFFA7C8, 0xFFD0A7FF}
 
 	return ui
 }
@@ -133,14 +146,15 @@ func (ui *UI) Init() error {
 	ui.scrollPixels = 0
 	ui.res = 2
 	ui.keyPressed = 0xFF
+	ui.selectedFrameBuffer = 0
 	ui.Reset()
 
 	return nil
 }
 
 func (ui *UI) Update() error {
-	for x := range ui.frameBuffer {
-		for y := range ui.frameBuffer[x] {
+	for x := range WIDTH {
+		for y := range HEIGHT {
 			rc := &sdl.Rect{
 				X: int32(x * ui.scale),
 				Y: int32(y * ui.scale),
@@ -148,7 +162,9 @@ func (ui *UI) Update() error {
 				H: int32(ui.scale * ui.res),
 			}
 
-			color := uint32(ui.frameBuffer[x][y]) * 0xFFFFFFFF
+			pixel0, pixel1 := ui.frameBuffer[0][x][y], ui.frameBuffer[1][x][y]
+
+			color := ui.colorPalette[pixel1<<1|pixel0]
 
 			if err := ui.surface.FillRect(rc, color); err != nil {
 				return fmt.Errorf("failed to fill rect: %w", err)
@@ -188,69 +204,25 @@ func (ui *UI) ToggleHiRes(enable bool) {
 
 func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
 	collision := false
-	startYDraw := (y * byte(ui.res)) % HEIGHT
 
-	spriteWidth := byte(8)
-	spriteHeight := byte(len(sprite))
-
-	if len(sprite) == 32 {
-		spriteWidth = 16
-		spriteHeight = 16
-	}
-
-	for row := range spriteHeight {
-		yDraw := (y + row) * byte(ui.res) % HEIGHT
-		prevXDraw := (x * byte(ui.res)) % WIDTH
-
-		if yDraw < startYDraw && ui.compatibilityMode != lib.CM_XOCHIP {
-			continue
-		}
-
-		spriteRow := uint16(sprite[row])
-
-		if spriteWidth == 16 {
-			spriteRow = (uint16(sprite[row*2]) << uint16(lib.BYTE_SIZE)) | uint16(sprite[row*2+1])
-		}
-
-		for offset := range spriteWidth {
-			xDraw := byte((int(x)+int(offset))*ui.res) % WIDTH
-			spritePixel := lib.Bit(spriteRow, uint16(spriteWidth-1-offset))
-			oldPixel := ui.frameBuffer[xDraw][yDraw]
-			newPixel := spritePixel ^ oldPixel
-
-			if xDraw < prevXDraw && ui.compatibilityMode != lib.CM_XOCHIP {
-				continue
-			}
-
-			if spritePixel == 1 && oldPixel == 1 {
-				collision = true
-			}
-
-			prevXDraw = xDraw
-
-			ui.frameBuffer[xDraw][yDraw] = newPixel
-			if ui.res == 2 {
-				ui.frameBuffer[xDraw+1][yDraw] = newPixel
-				ui.frameBuffer[xDraw][yDraw+1] = newPixel
-				ui.frameBuffer[xDraw+1][yDraw+1] = newPixel
-			}
-		}
+	for _, i := range ui.getFrameBufferIDs() {
+		collision = collision || ui.drawSpriteOnFramebuffer(x, y, sprite, i)
 	}
 
 	return collision
 }
 
 func (ui *UI) Reset() {
-	for x := range ui.frameBuffer {
-		for y := range ui.frameBuffer[x] {
-			ui.frameBuffer[x][y] = 0
-		}
+	for _, i := range ui.getFrameBufferIDs() {
+		ui.resetFramebuffer(i)
 	}
 }
 
 func (ui *UI) Destroy() {
 	ui.renderer.Destroy()
 	ui.window.Destroy()
+	ui.surface.Destroy()
+	ui.texture.Destroy()
 }
 
 func (ui *UI) IsKeyPressed(key byte) bool {
@@ -265,6 +237,21 @@ func (ui *UI) GetPressedKey() byte {
 	}
 
 	return 0xFF
+}
+
+func (ui *UI) SelectFrameBuffer(id byte) {
+	switch id {
+	case 0:
+		ui.selectedFrameBuffer = SF_NONE
+	case 1:
+		ui.selectedFrameBuffer = SF_0
+	case 2:
+		ui.selectedFrameBuffer = SF_1
+	case 3:
+		ui.selectedFrameBuffer = SF_BOTH
+	default:
+		log.Fatalf("framebuffer id must be 0, 1, 2 or 3 actual %d", id)
+	}
 }
 
 func (ui *UI) Screenshot(romFileName string) {
@@ -291,20 +278,9 @@ func (ui *UI) Screenshot(romFileName string) {
 }
 
 func (ui *UI) Scroll(sd ScrollDirection, pixels int) {
-	var tmpBuf [WIDTH][HEIGHT]byte
-
-	for x := range ui.frameBuffer {
-		for y := range ui.frameBuffer[x] {
-			newX, newY := ui.scrolledCoords(x, y, sd, pixels)
-			if newX < 0 || newY < 0 || newX >= WIDTH || newY >= HEIGHT {
-				continue
-			}
-
-			tmpBuf[newX][newY] = ui.frameBuffer[x][y]
-		}
+	for _, i := range ui.getFrameBufferIDs() {
+		ui.scrollFrameBuffer(sd, pixels, i)
 	}
-
-	copy(ui.frameBuffer[:][:], tmpBuf[:][:])
 }
 
 func (ui *UI) HandleEvents() error {
@@ -365,4 +341,98 @@ func (ui *UI) scrolledCoords(x, y int, sd ScrollDirection, pixels int) (int, int
 	}
 
 	return newX, newY
+}
+
+func (ui *UI) getFrameBufferIDs() []byte {
+	switch ui.selectedFrameBuffer {
+	case SF_NONE, SF_0:
+		return []byte{0}
+	case SF_1:
+		return []byte{1}
+	case SF_BOTH:
+		return []byte{0, 1}
+	default:
+		log.Fatalf("unknown framebuffer ID: %d", ui.selectedFrameBuffer)
+	}
+
+	return nil
+}
+
+func (ui *UI) drawSpriteOnFramebuffer(x, y byte, sprite []byte, frameBufferID byte) bool {
+	collision := false
+	startYDraw := (y * byte(ui.res)) % HEIGHT
+
+	spriteWidth := byte(8)
+	spriteHeight := byte(len(sprite))
+
+	if len(sprite) == 32 {
+		spriteWidth = 16
+		spriteHeight = 16
+	}
+
+	for row := range spriteHeight {
+		yDraw := (y + row) * byte(ui.res) % HEIGHT
+		prevXDraw := (x * byte(ui.res)) % WIDTH
+
+		if yDraw < startYDraw && ui.compatibilityMode != lib.CM_XOCHIP {
+			continue
+		}
+
+		spriteRow := uint16(sprite[row])
+
+		if spriteWidth == 16 {
+			spriteRow = (uint16(sprite[row*2]) << uint16(lib.BYTE_SIZE)) | uint16(sprite[row*2+1])
+		}
+
+		for offset := range spriteWidth {
+			xDraw := byte((int(x)+int(offset))*ui.res) % WIDTH
+			spritePixel := lib.Bit(spriteRow, uint16(spriteWidth-1-offset))
+			oldPixel := ui.frameBuffer[frameBufferID][xDraw][yDraw]
+			newPixel := spritePixel ^ oldPixel
+
+			if xDraw < prevXDraw && ui.compatibilityMode != lib.CM_XOCHIP {
+				continue
+			}
+
+			if spritePixel == 1 && oldPixel == 1 {
+				collision = true
+			}
+
+			prevXDraw = xDraw
+
+			ui.frameBuffer[frameBufferID][xDraw][yDraw] = newPixel
+			if ui.res == 2 {
+				ui.frameBuffer[frameBufferID][xDraw+1][yDraw] = newPixel
+				ui.frameBuffer[frameBufferID][xDraw][yDraw+1] = newPixel
+				ui.frameBuffer[frameBufferID][xDraw+1][yDraw+1] = newPixel
+			}
+		}
+	}
+
+	return collision
+}
+
+func (ui *UI) resetFramebuffer(frameBufferID byte) {
+	for x := range WIDTH {
+		for y := range HEIGHT {
+			ui.frameBuffer[frameBufferID][x][y] = 0
+		}
+	}
+}
+
+func (ui *UI) scrollFrameBuffer(sd ScrollDirection, pixels int, frameBufferID byte) {
+	var tmpBuf [WIDTH][HEIGHT]byte
+
+	for x := range ui.frameBuffer {
+		for y := range ui.frameBuffer[x] {
+			newX, newY := ui.scrolledCoords(x, y, sd, pixels)
+			if newX < 0 || newY < 0 || newX >= WIDTH || newY >= HEIGHT {
+				continue
+			}
+
+			tmpBuf[newX][newY] = ui.frameBuffer[frameBufferID][x][y]
+		}
+	}
+
+	copy(ui.frameBuffer[frameBufferID][:][:], tmpBuf[:][:])
 }
