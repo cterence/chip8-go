@@ -26,7 +26,7 @@ type UI struct {
 	texture  *sdl.Texture
 	surface  *sdl.Surface
 
-	keyPressed byte
+	keyPressed *byte
 	sdlKeyIDs  map[sdl.Keycode]byte
 	keyState   map[byte]bool
 
@@ -149,7 +149,7 @@ func (ui *UI) Init() error {
 	ui.scrollDirection = SD_NONE
 	ui.scrollPixels = 0
 	ui.res = 2
-	ui.keyPressed = 0xFF
+	ui.keyPressed = nil
 	ui.SelectedFrameBuffer = 0
 	ui.Reset()
 
@@ -238,14 +238,14 @@ func (ui *UI) IsKeyPressed(key byte) bool {
 	return ui.keyState[key]
 }
 
-func (ui *UI) GetPressedKey() byte {
+func (ui *UI) GetPressedKey() *byte {
 	for id, pressed := range ui.keyState {
 		if pressed {
-			return id
+			return &id
 		}
 	}
 
-	return 0xFF
+	return nil
 }
 
 func (ui *UI) SelectFrameBuffer(id byte) {
@@ -370,7 +370,6 @@ func (ui *UI) getFrameBufferIDs() []byte {
 func (ui *UI) drawSpriteOnFramebuffer(x, y byte, sprite []byte, frameBufferID byte) bool {
 	collision := false
 	startYDraw := (y * byte(ui.res)) % HEIGHT
-
 	spriteWidth := byte(8)
 	spriteHeight := byte(len(sprite))
 
@@ -408,6 +407,10 @@ func (ui *UI) drawSpriteOnFramebuffer(x, y byte, sprite []byte, frameBufferID by
 			}
 
 			prevXDraw = xDraw
+
+			// if spritePixel == 1 {
+			// 	fmt.Printf("Drawing pixel at (%d, %d)\n", xDraw, yDraw)
+			// }
 
 			ui.frameBuffer[frameBufferID][xDraw][yDraw] = newPixel
 			if ui.res == 2 {

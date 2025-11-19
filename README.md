@@ -26,7 +26,8 @@ Automated screenshots from test runs done with [GitHub actions](./.github/workfl
 
 - [x] Embed SDL3
 - [x] Implement SUPER-CHIP
+- [ ] Implement XO-CHIP
 - [ ] Adjust speed dynamically
 - [ ] Change window title when game paused
-- [ ] Implement XO-CHIP
 - [ ] Load rom with drag-n-drop if not provided
+- [ ] Create Nix package

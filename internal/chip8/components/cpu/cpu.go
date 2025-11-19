@@ -35,7 +35,7 @@ type CPU struct {
 	sp    uint8
 
 	romFileName             string
-	pressedKey              byte
+	pressedKey              *byte
 	forcedCompatibilityMode bool
 	compatibilityMode       lib.CompatibilityMode
 	ticks                   int
@@ -102,7 +102,7 @@ func (c *CPU) Init() {
 	c.i = 0
 	c.pc = memory.PROGRAM_RAM_START
 	c.sp = 0
-	c.pressedKey = 0xFF
+	c.pressedKey = nil
 	c.updateCompatibilityMode(c.compatibilityMode)
 	c.ticks = 0
 }
@@ -290,31 +290,31 @@ func (c *CPU) execute(inst uint16) {
 			c.debugInfo.inst = "SFM V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.updateCompatibilityMode(lib.CM_XOCHIP)
 
-			v1, v2 := hi0, lo1
+			regCount := byte(math.Abs(float64(hi0)-float64(lo1))) + 1
 
-			if lo1 > v1 {
-				v1, v2 = lo1, hi0
-			}
-
-			regCount := v1 - v2
-
-			for i := range regCount {
-				c.mem.Write(c.i+uint16(i), c.readReg(i+v2))
+			if hi0 < lo1 {
+				for i := range regCount {
+					c.mem.Write(c.i+uint16(i), c.readReg(hi0+i))
+				}
+			} else {
+				for i := range regCount {
+					c.mem.Write(c.i+uint16(i), c.readReg(hi0-i))
+				}
 			}
 		case 0x3:
 			c.debugInfo.inst = "LFM V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
 			c.updateCompatibilityMode(lib.CM_XOCHIP)
 
-			v1, v2 := hi0, lo1
+			regCount := byte(math.Abs(float64(hi0)-float64(lo1))) + 1
 
-			if lo1 > v1 {
-				v1, v2 = lo1, hi0
-			}
-
-			regCount := v1 - v2
-
-			for i := range regCount {
-				c.writeReg(i+v2, c.mem.Read(c.i+uint16(i)))
+			if hi0 < lo1 {
+				for i := range regCount {
+					c.writeReg(hi0+i, c.mem.Read(c.i+uint16(i)))
+				}
+			} else {
+				for i := range regCount {
+					c.writeReg(hi0-i, c.mem.Read(c.i+uint16(i)))
+				}
 			}
 		default:
 			c.debugInfo.inst = "SE V" + lib.FormatHex(hi0, 1) + ", V" + lib.FormatHex(lo1, 1)
@@ -538,18 +538,18 @@ func (c *CPU) execute(inst uint16) {
 		case 0x0A:
 			c.debugInfo.inst = "LD V" + lib.FormatHex(hi0, 1) + ", K"
 
-			if c.pressedKey == 0xFF {
+			if c.pressedKey == nil {
 				c.pressedKey = c.ui.GetPressedKey()
 
 				return
 			}
 
-			if c.ui.IsKeyPressed(c.pressedKey) {
+			if c.ui.IsKeyPressed(*c.pressedKey) {
 				return
 			}
 
-			c.writeReg(hi0, c.pressedKey)
-			c.pressedKey = 0xFF
+			c.writeReg(hi0, *c.pressedKey)
+			c.pressedKey = nil
 		case 0x15:
 			c.debugInfo.inst = "LD DT, V" + lib.FormatHex(hi0, 1)
 			c.timer.SetDelay(c.readReg(hi0))
