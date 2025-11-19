@@ -700,8 +700,5 @@ func (c *CPU) execute(inst uint16) {
 
 	c.pc += 2
 
-	log.Printf("Memory at 0x208-0x20C: %02X %02X %02X %02X %02X\n",
-		c.mem.Read(0x208), c.mem.Read(0x209), c.mem.Read(0x20A), c.mem.Read(0x20B), c.mem.Read(0x20C))
-
 	lib.Assert(implemented, fmt.Errorf("unimplemented instruction: %04X", inst))
 }
