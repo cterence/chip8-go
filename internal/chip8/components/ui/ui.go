@@ -21,10 +21,11 @@ type UI struct {
 	frameBuffer         [2][WIDTH][HEIGHT]byte
 	colorPalette        [4]uint32
 
-	window   *sdl.Window
-	renderer *sdl.Renderer
-	texture  *sdl.Texture
-	surface  *sdl.Surface
+	window      *sdl.Window
+	windowTitle string
+	renderer    *sdl.Renderer
+	texture     *sdl.Texture
+	surface     *sdl.Surface
 
 	keyPressed *byte
 	sdlKeyIDs  map[sdl.Keycode]byte
@@ -116,13 +117,20 @@ func WithCompatibilityMode(mode lib.CompatibilityMode) Option {
 }
 
 func (ui *UI) Init() error {
+	ui.scrollDirection = SD_NONE
+	ui.scrollPixels = 0
+	ui.res = 2
+	ui.keyPressed = nil
+	ui.SelectedFrameBuffer = 0
+	ui.windowTitle = "chip8-go"
+
 	err := sdl.Init(sdl.INIT_VIDEO)
 	if err != nil {
 		return fmt.Errorf("failed to init sdl: %w", err)
 	}
 
 	if ui.window == nil && ui.renderer == nil {
-		ui.window, ui.renderer, err = sdl.CreateWindowAndRenderer("CHIP-8", WIDTH*ui.scale, HEIGHT*ui.scale, sdl.WINDOW_RESIZABLE)
+		ui.window, ui.renderer, err = sdl.CreateWindowAndRenderer(ui.windowTitle, WIDTH*ui.scale, HEIGHT*ui.scale, sdl.WINDOW_RESIZABLE)
 		if err != nil {
 			return fmt.Errorf("failed to create window and renderer: %w", err)
 		}
@@ -146,11 +154,6 @@ func (ui *UI) Init() error {
 		ui.keyState[v] = false
 	}
 
-	ui.scrollDirection = SD_NONE
-	ui.scrollPixels = 0
-	ui.res = 2
-	ui.keyPressed = nil
-	ui.SelectedFrameBuffer = 0
 	ui.Reset()
 
 	return nil
@@ -178,6 +181,11 @@ func (ui *UI) Update() error {
 
 	ui.scrollDirection = SD_NONE
 	ui.scrollPixels = 0
+	ui.windowTitle = "chip8-go"
+
+	if ui.IsChip8Paused() {
+		ui.windowTitle += " [PAUSED]"
+	}
 
 	if err := ui.texture.Update(nil, ui.surface.Pixels(), ui.surface.Pitch); err != nil {
 		return fmt.Errorf("failed to update texture: %w", err)
@@ -193,6 +201,10 @@ func (ui *UI) Update() error {
 
 	if err := ui.renderer.Present(); err != nil {
 		return fmt.Errorf("failed to present UI: %w", err)
+	}
+
+	if err := ui.window.SetTitle(ui.windowTitle); err != nil {
+		return fmt.Errorf("failed to set window title: %w", err)
 	}
 
 	return nil

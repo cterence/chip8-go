@@ -57,6 +57,51 @@
         }
       );
 
+      packages = forEachSupportedSystem (
+        { pkgs }:
+        {
+          default = pkgs.buildGoModule {
+            pname = "chip8-go";
+            version = "0.1.0";
+            src = ./.;
+            vendorHash = "sha256-61sZUaaYdVSb3Vw0Csc9yHFNlAEhIyGeq2ujkfa6HS4=";
+
+            doCheck = false;
+
+            nativeBuildInputs = with pkgs; [
+              makeWrapper
+            ];
+
+            postFixup = ''
+              wrapProgram $out/bin/chip8-go \
+                --prefix LD_LIBRARY_PATH : "${
+                  pkgs.lib.makeLibraryPath (
+                    with pkgs;
+                    [
+                      alsa-lib
+                      libjack2
+                      pipewire
+                      wayland
+                      libxkbcommon
+                      libdecor
+                      xorg.libX11
+                      xorg.libXext
+                      xorg.libXcursor
+                      xorg.libXinerama
+                      xorg.libXi
+                      xorg.libXrandr
+                      xorg.libXxf86vm
+                      libGL
+                      vulkan-loader
+                      mesa
+                    ]
+                  )
+                }"
+            '';
+          };
+        }
+      );
+
       checks = forEachSupportedSystem (
         { pkgs }:
         {
