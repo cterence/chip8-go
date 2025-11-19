@@ -69,7 +69,7 @@ jobs:
           mvimg "-chip8"
           ./chip8-go $TEST_DIR/5-quirks.ch8 --disable-audio --screenshot -e 3500 -t 2 -m super
           mvimg "-super"
-          ./chip8-go $TEST_DIR/5-quirks.ch8 --disable-audio --screenshot -e 20000 -t 3 -m xo
+          ./chip8-go $TEST_DIR/5-quirks.ch8 --disable-audio --screenshot -e 2000000 -t 3 -m xo
           mvimg "-xo"
           ./chip8-go $TEST_DIR/8-scrolling.ch8 --disable-audio --screenshot -e 300 -t 1
           mvimg "-super-lores"
