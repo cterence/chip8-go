@@ -28,6 +28,7 @@ Automated screenshots from test runs done with [GitHub actions](./.github/workfl
 - [x] Implement SUPER-CHIP
 - [x] Change window title when game paused
 - [x] Create Nix package
-- [ ] Implement XO-CHIP
+- [x] Implement XO-CHIP
+- [ ] Fix various crashing games (skyward crash when falling to bottom)
 - [ ] Adjust speed dynamically
 - [ ] Load rom with drag-n-drop if not provided

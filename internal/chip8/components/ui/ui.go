@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -219,18 +220,19 @@ func (ui *UI) ToggleHiRes(enable bool) {
 }
 
 func (ui *UI) DrawSprite(x, y byte, sprite []byte) bool {
-	collision := false
-
 	fbIDs := ui.getFrameBufferIDs()
 
 	switch len(fbIDs) {
 	case 1:
-		collision = ui.drawSpriteOnFramebuffer(x, y, sprite, fbIDs[0])
+		return ui.drawSpriteOnFramebuffer(x, y, sprite, fbIDs[0])
 	case 2:
-		collision = ui.drawSpriteOnFramebuffer(x, y, sprite[:len(sprite)/2], fbIDs[0]) || ui.drawSpriteOnFramebuffer(x, y, sprite[len(sprite)/2:], fbIDs[1])
-	}
+		collision0 := ui.drawSpriteOnFramebuffer(x, y, sprite[:len(sprite)/2], fbIDs[0])
+		collision1 := ui.drawSpriteOnFramebuffer(x, y, sprite[len(sprite)/2:], fbIDs[1])
 
-	return collision
+		return collision0 || collision1
+	default:
+		panic("wrong framebuffer id slice length: " + strconv.Itoa(len(fbIDs)))
+	}
 }
 
 func (ui *UI) Reset() {
