@@ -122,7 +122,6 @@ func (ui *UI) Init() error {
 	ui.scrollPixels = 0
 	ui.res = 2
 	ui.keyPressed = nil
-	ui.SelectedFrameBuffer = 0
 	ui.windowTitle = "chip8-go"
 
 	err := sdl.Init(sdl.INIT_VIDEO)
@@ -155,7 +154,9 @@ func (ui *UI) Init() error {
 		ui.keyState[v] = false
 	}
 
+	ui.SelectedFrameBuffer = SF_BOTH
 	ui.Reset()
+	ui.SelectedFrameBuffer = SF_NONE
 
 	return nil
 }

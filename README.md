@@ -29,6 +29,7 @@ Automated screenshots from test runs done with [GitHub actions](./.github/workfl
 - [x] Change window title when game paused
 - [x] Create Nix package
 - [x] Implement XO-CHIP
-- [ ] Fix various crashing games (skyward crash when falling to bottom)
+- [x] Fix various crashing games (skyward crash when falling to bottom)
+- [ ] Fix skyward bug when character goes into wall
 - [ ] Adjust speed dynamically
 - [ ] Load rom with drag-n-drop if not provided

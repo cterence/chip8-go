@@ -122,6 +122,7 @@ func (c *CPU) DebugInfo() string {
 	debugInfo.WriteString("SP:" + lib.FormatHex(c.sp, 2) + " ")
 	debugInfo.WriteString("I:" + lib.FormatHex(c.i, 4) + " ")
 	debugInfo.WriteString("ST:" + lib.FormatHex(c.stack[c.sp], 4) + " ")
+	debugInfo.WriteString("MEM:" + lib.FormatHex(c.mem.Read(c.pc), 2) + lib.FormatHex(c.mem.Read(c.pc+1), 2) + " ")
 
 	for r, v := range c.reg {
 		rs, vs := lib.FormatHex(byte(r), 1), lib.FormatHex(v.value, 2)
@@ -162,6 +163,11 @@ func (c *CPU) popStack() uint16 {
 
 func (c *CPU) updateCompatibilityMode(mode lib.CompatibilityMode) {
 	if c.forcedCompatibilityMode && c.ticks > 0 {
+		return
+	}
+
+	// No downgrade
+	if c.compatibilityMode == lib.CM_XOCHIP && mode == lib.CM_SUPERCHIP {
 		return
 	}
 
@@ -217,7 +223,7 @@ func (c *CPU) execute(inst uint16) {
 				c.debugInfo.inst = "SCD " + lib.FormatHex(lo0, 1)
 				c.ui.Scroll(ui.SD_DOWN, int(lo0))
 			case 0xD:
-				c.compatibilityMode = lib.CM_XOCHIP
+				c.updateCompatibilityMode(lib.CM_XOCHIP)
 				c.debugInfo.inst = "SCU " + lib.FormatHex(lo0, 1)
 				c.ui.Scroll(ui.SD_UP, int(lo0))
 			case 0xF:
@@ -509,6 +515,7 @@ func (c *CPU) execute(inst uint16) {
 	case 0xF:
 		switch lo {
 		case 0x00:
+			c.updateCompatibilityMode(lib.CM_XOCHIP)
 			c.pc += 2
 			addr := c.decodeInstruction()
 
@@ -588,7 +595,7 @@ func (c *CPU) execute(inst uint16) {
 				i++
 			}
 
-			if c.compatibilityMode == lib.CM_CHIP8 || c.compatibilityMode == lib.CM_XOCHIP {
+			if c.compatibilityMode == lib.CM_CHIP8 {
 				c.i = i
 			}
 		case 0x65:
@@ -601,7 +608,7 @@ func (c *CPU) execute(inst uint16) {
 				i++
 			}
 
-			if c.compatibilityMode == lib.CM_CHIP8 || c.compatibilityMode == lib.CM_XOCHIP {
+			if c.compatibilityMode == lib.CM_CHIP8 {
 				c.i = i
 			}
 		case 0x75:
