@@ -1,6 +1,31 @@
 # chip8-go
 
-A Golang CHIP-8 interpreter.
+A Golang CHIP-8 interpreter. Compatible with CHIP-8, SUPER-CHIP and XO-CHIP instruction sets.
+
+Uses [go-sdl3](https://github.com/Zyko0/go-sdl3) for the UI and audio.
+
+## Usage
+
+```bash
+NAME:
+   chip8-go - chip8 interpreter
+
+USAGE:
+   chip8-go [arguments...]
+
+OPTIONS:
+   --debug, -d                             print debug logs
+   --disable-audio                         disable audio beeps
+   --speed float, -s float                 interpreter speed (default: 1)
+   --scale int                             pixel and window scale factor (default: 4)
+   --test-flag uint, -t uint               populate 0x1FF address before run (used by timendus tests) (default: 0)
+   --compatibility-mode string, -m string  force compatibility mode (chip8, super, xo)
+   --help, -h                              show help
+   --pause-after int, -p int               pause execution after t ticks (default: 0)
+   --exit-after int, -e int                exit after t ticks (default: 0)
+   --headless                              disable ui
+   --screenshot                            save screenshot on exit
+```
 
 ## Test results
 
