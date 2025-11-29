@@ -75,9 +75,9 @@ jobs:
           mvimg "-super-lores"
           ./chip8-go $TEST_DIR/8-scrolling.ch8 --disable-audio --screenshot -e 300 -t 3
           mvimg "-super-hires"
-          ./chip8-go $TEST_DIR/8-scrolling.ch8 --disable-audio --screenshot -e 350 -t 4
+          ./chip8-go $TEST_DIR/8-scrolling.ch8 --disable-audio --screenshot -e 2000000 -t 4
           mvimg "-xo-lores"
-          ./chip8-go $TEST_DIR/8-scrolling.ch8 --disable-audio --screenshot -e 350 -t 5
+          ./chip8-go $TEST_DIR/8-scrolling.ch8 --disable-audio --screenshot -e 2000000 -t 5
           mvimg "-xo-hires"
 
 
