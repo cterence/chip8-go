@@ -33,7 +33,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@0a35821d5c230e903fcfe077583637dea1b27b47 # v9
         with:
-          version: v2.5
+          version: v2.13.2
 
       - name: Build
         run: CGO_ENABLED=0 go build
